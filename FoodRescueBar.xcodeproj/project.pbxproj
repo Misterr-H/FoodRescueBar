@@ -23,12 +23,14 @@
 		9CBE9ED5F6B8AA5FB60285E5 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 801D5C6EEF688358DB4F125B /* NotificationManager.swift */; };
 		AA3CC50A881097756836CA33 /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEADE560DBAAF9981CD9BBD6 /* LaunchAtLogin.swift */; };
 		B30520271FC40AC3B2A9CCFC /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A22534E120395AD653AE828 /* SettingsView.swift */; };
+		CE581191F2667B1DD8837CC6 /* MQTTPayloadParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C987F6620403DAF02DD9994 /* MQTTPayloadParser.swift */; };
 		CE7A854A80543C11B9615108 /* LocationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C595918AF7410CDF7688A42 /* LocationView.swift */; };
 		D19F1B29292DA7BC47803B33 /* FoodRescueBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97A4B935E5FD16C81E570B85 /* FoodRescueBarApp.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		12FF9DF92897B740D07737C9 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		1C987F6620403DAF02DD9994 /* MQTTPayloadParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MQTTPayloadParser.swift; sourceTree = "<group>"; };
 		1E30C6F186544AB2BC4DF945 /* FoodRescueBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FoodRescueBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		300983FF9845D1FD9E326503 /* ZomatoAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZomatoAPI.swift; sourceTree = "<group>"; };
 		44902894158FDB15BDAE0D12 /* MenuBarRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarRootView.swift; sourceTree = "<group>"; };
@@ -67,6 +69,7 @@
 				7E1604380A32D09EB66A44E9 /* KeychainStore.swift */,
 				BEADE560DBAAF9981CD9BBD6 /* LaunchAtLogin.swift */,
 				D2DBF4C8E01FB5931D750146 /* MQTTMonitor.swift */,
+				1C987F6620403DAF02DD9994 /* MQTTPayloadParser.swift */,
 				801D5C6EEF688358DB4F125B /* NotificationManager.swift */,
 				300983FF9845D1FD9E326503 /* ZomatoAPI.swift */,
 				FAA869BB1B3B2B5759E4A229 /* ZomatoHeaders.swift */,
@@ -205,6 +208,7 @@
 				CE7A854A80543C11B9615108 /* LocationView.swift in Sources */,
 				0CBACECE48764774369B0516 /* LoginView.swift in Sources */,
 				3F12CE0B032731CF8E315B40 /* MQTTMonitor.swift in Sources */,
+				CE581191F2667B1DD8837CC6 /* MQTTPayloadParser.swift in Sources */,
 				465DA2DFEF5FE9757D46DD76 /* MenuBarRootView.swift in Sources */,
 				03258C7B66C5FED1683BD405 /* Models.swift in Sources */,
 				9CBE9ED5F6B8AA5FB60285E5 /* NotificationManager.swift in Sources */,
@@ -253,7 +257,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -268,7 +272,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -329,7 +333,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -350,7 +354,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

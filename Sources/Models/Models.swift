@@ -124,8 +124,64 @@ struct RescueEvent: Identifiable, Equatable {
     let type: FoodRescueEventType
     let timestamp: Date
     let rawPreview: String
+    /// Your watched saved-address id (which subscription fired).
     let addressId: Int
+    /// e.g. Home / Work
     let locationName: String
+    /// Full saved-address line for that subscription
+    var locationAddress: String
+    /// From MQTT success_actions when present
+    var orderId: String?
+    /// Enriched via create-cart / res_info (optional)
+    var restaurantId: String?
+    var restaurantName: String?
+    var restaurantLat: Double?
+    var restaurantLng: Double?
+    var cartFinalCost: Double?
+    var catalogTotalCost: Double?
+    var viewersCount: Int?
+    var cartExpiry: Date?
+    var isEnriching: Bool
+    var enrichmentFailed: Bool
+
+    var isClaimable: Bool { type == .orderCancelled }
+
+    var titleText: String {
+        if type == .orderCancelled {
+            return restaurantName.map { "\($0) — claimable" } ?? "Order cancelled — claimable"
+        }
+        return restaurantName.map { "\($0) — claimed" } ?? "Order claimed"
+    }
+
+    var priceText: String? {
+        guard let cartFinalCost else { return nil }
+        if let catalog = catalogTotalCost, catalog > cartFinalCost {
+            return String(format: "₹%.0f  (was ₹%.0f)", cartFinalCost, catalog)
+        }
+        return String(format: "₹%.0f", cartFinalCost)
+    }
+
+    var subscribedAreaText: String {
+        if locationAddress.isEmpty { return locationName }
+        return "\(locationName) · \(locationAddress)"
+    }
+}
+
+struct FoodRescueDealDetails: Equatable {
+    var resId: String
+    var cartFinalCost: Double
+    var viewersCount: Int
+    var cartId: String
+    var parentOrderId: String?
+    var cartExpiryTimestamp: TimeInterval?
+    var catalogTotalCost: Double?
+}
+
+struct RestaurantMeta: Equatable {
+    var resId: String
+    var name: String
+    var lat: Double?
+    var lng: Double?
 }
 
 // MARK: - App connection state

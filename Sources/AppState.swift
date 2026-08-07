@@ -35,6 +35,8 @@ final class AppState: ObservableObject {
     // Settings
     @AppStorage("cooldownSeconds") var cooldownSeconds: Double = 180
     @AppStorage("playSound") var playSound = true
+    /// When on, fetches restaurant/price via create-cart (may consume in-app flyer pitch).
+    @AppStorage("fetchDealDetails") var fetchDealDetails = true
     @AppStorage("launchAtLogin") var launchAtLoginPref = false {
         didSet { LaunchAtLogin.isEnabled = launchAtLoginPref }
     }
@@ -47,6 +49,8 @@ final class AppState: ObservableObject {
     private var monitors: [Int: MQTTMonitor] = [:]
     /// addressId → last Food Rescue channel (for reconnect)
     private var channels: [Int: FoodRescueChannel] = [:]
+    /// addressId → city id from tabbed-home
+    private var cityIdByAddress: [Int: Int] = [:]
     /// addressId → per-address state
     private var statusByAddress: [Int: LocationMonitorStatus] = [:]
 
@@ -343,6 +347,7 @@ final class AppState: ObservableObject {
                 return
             }
             channels[location.addressId] = fr
+            cityIdByAddress[location.addressId] = essentials.cityId
 
             let monitor = MQTTMonitor(addressId: location.addressId, locationName: location.name)
             monitor.onEvent = { [weak self] event in
@@ -442,20 +447,36 @@ final class AppState: ObservableObject {
             }
             recomputeAggregateState()
 
-        case .message(let id, let type, let timestamp, let raw):
-            let item = RescueEvent(
-                id: "\(addressId)-\(id)",
-                type: type,
-                timestamp: timestamp,
-                rawPreview: raw,
+        case .message(let parsed):
+            let location = selectedLocations.first(where: { $0.addressId == addressId })
+            let eventId = "\(addressId)-\(parsed.messageId)"
+            var item = RescueEvent(
+                id: eventId,
+                type: parsed.eventType,
+                timestamp: parsed.timestamp,
+                rawPreview: String(parsed.raw.prefix(400)),
                 addressId: addressId,
-                locationName: locationName
+                locationName: locationName,
+                locationAddress: location?.fullAddress ?? "",
+                orderId: parsed.orderId,
+                restaurantId: nil,
+                restaurantName: nil,
+                restaurantLat: nil,
+                restaurantLng: nil,
+                cartFinalCost: nil,
+                catalogTotalCost: nil,
+                viewersCount: nil,
+                cartExpiry: nil,
+                isEnriching: parsed.eventType == .orderCancelled && fetchDealDetails,
+                enrichmentFailed: false
             )
             events.insert(item, at: 0)
             if events.count > 50 { events = Array(events.prefix(50)) }
 
-            if type == .orderCancelled {
-                handleCancelAlert(locationName: locationName)
+            if parsed.eventType == .orderCancelled {
+                Task {
+                    await enrichAndAlert(eventId: eventId, addressId: addressId, locationName: locationName)
+                }
             }
 
         case .log:
@@ -463,14 +484,75 @@ final class AppState: ObservableObject {
         }
     }
 
-    private func handleCancelAlert(locationName: String) {
+    private func enrichAndAlert(eventId: String, addressId: Int, locationName: String) async {
+        var shouldNotify = true
         let now = Date()
         let elapsed = now.timeIntervalSince(lastNotifiedAt)
-        guard elapsed >= cooldownSeconds else { return }
+        if elapsed < cooldownSeconds {
+            shouldNotify = false
+        }
+
+        if fetchDealDetails,
+           let token = tokens?.accessToken,
+           let location = selectedLocations.first(where: { $0.addressId == addressId }) {
+            let cityId = cityIdByAddress[addressId] ?? 0
+            do {
+                let deal = try await api.fetchFoodRescueDeal(
+                    location: location,
+                    cityId: cityId,
+                    accessToken: token
+                )
+                var restaurantName: String?
+                var lat: Double?
+                var lng: Double?
+                if let meta = try? await api.fetchRestaurantMeta(resId: deal.resId, accessToken: token) {
+                    restaurantName = meta.name
+                    lat = meta.lat
+                    lng = meta.lng
+                }
+                updateEvent(id: eventId) { event in
+                    event.restaurantId = deal.resId
+                    event.restaurantName = restaurantName
+                    event.restaurantLat = lat
+                    event.restaurantLng = lng
+                    event.cartFinalCost = deal.cartFinalCost
+                    event.catalogTotalCost = deal.catalogTotalCost
+                    event.viewersCount = deal.viewersCount
+                    if let exp = deal.cartExpiryTimestamp {
+                        event.cartExpiry = Date(timeIntervalSince1970: exp > 10_000_000_000 ? exp / 1000 : exp)
+                    }
+                    if event.orderId == nil {
+                        event.orderId = deal.parentOrderId
+                    }
+                    event.isEnriching = false
+                    event.enrichmentFailed = false
+                }
+            } catch {
+                updateEvent(id: eventId) { event in
+                    event.isEnriching = false
+                    event.enrichmentFailed = true
+                }
+            }
+        } else {
+            updateEvent(id: eventId) { event in
+                event.isEnriching = false
+            }
+        }
+
+        guard shouldNotify else { return }
         lastNotifiedAt = now
         lastAlertAt = now
         alertCountToday += 1
-        NotificationManager.shared.sendFoodRescueAlert(locationName: locationName, playSound: playSound)
+        if let event = events.first(where: { $0.id == eventId }) {
+            NotificationManager.shared.sendFoodRescueAlert(for: event, playSound: playSound)
+        }
+    }
+
+    private func updateEvent(id: String, mutate: (inout RescueEvent) -> Void) {
+        guard let idx = events.firstIndex(where: { $0.id == id }) else { return }
+        var copy = events[idx]
+        mutate(&copy)
+        events[idx] = copy
     }
 
     private func setStatus(addressId: Int, name: String, state: MonitorState, detail: String) {

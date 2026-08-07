@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject private var state: AppState
+    @State private var expandedEventId: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -211,9 +212,20 @@ struct HomeView: View {
                 EmptyEventsView()
                     .frCard(padding: 10)
             } else {
-                VStack(spacing: 4) {
+                VStack(spacing: 8) {
                     ForEach(state.events.prefix(6)) { event in
-                        EventRow(event: event)
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                expandedEventId = expandedEventId == event.id ? nil : event.id
+                            }
+                        } label: {
+                            EventRow(event: event, expanded: expandedEventId == event.id)
+                        }
+                        .buttonStyle(.plain)
+
+                        if event.id != state.events.prefix(6).last?.id {
+                            Divider().opacity(0.35)
+                        }
                     }
                     if state.events.count > 6 {
                         Text("+\(state.events.count - 6) more")

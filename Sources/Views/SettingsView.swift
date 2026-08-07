@@ -24,6 +24,17 @@ struct SettingsView: View {
 
                 Divider().opacity(0.4)
 
+                Toggle(isOn: $state.fetchDealDetails) {
+                    labelRow(
+                        title: "Fetch deal details",
+                        subtitle: "Restaurant, price & viewers via create-cart. May consume the in-app flyer pitch for that deal.",
+                        systemImage: "info.circle.fill"
+                    )
+                }
+                .toggleStyle(.switch)
+
+                Divider().opacity(0.4)
+
                 Toggle(isOn: $state.launchAtLoginPref) {
                     labelRow(
                         title: "Launch at login",
@@ -56,7 +67,7 @@ struct SettingsView: View {
                 Text("About")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.secondary)
-                Text("Listens to Food Rescue MQTT only — never auto-claims (avoids burning the in-app pitch). Open Zomato when you get an alert.")
+                Text("Each cancel is tagged with your subscribed area (Home/Work/…). Optional deal fetch adds restaurant & price. Open official Zomato to claim — we never auto-checkout.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

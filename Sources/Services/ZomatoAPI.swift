@@ -130,6 +130,57 @@ actor ZomatoAPI {
         return TabbedHomeEssentials(cityId: cityId, foodRescue: channel)
     }
 
+    // MARK: - Food Rescue deal details (create-cart)
+
+    /// Enriches an active rescue near `location`. Pitch-once on Zomato’s side.
+    func fetchFoodRescueDeal(
+        location: UserLocation,
+        cityId: Int,
+        accessToken: String
+    ) async throws -> FoodRescueDealDetails {
+        var locationBody: [String: Any] = [
+            "entity_type": location.entityType,
+            "place_type": location.entityId != nil ? "DSZ" : "PLACE",
+            "address_id": String(location.addressId),
+            "cell_id": location.cellId,
+            "current_city_id": String(cityId),
+            "city_id": String(cityId)
+        ]
+        if let lng = location.lng { locationBody["lng"] = lng }
+        if let lat = location.lat { locationBody["lat"] = lat }
+        if let entityId = location.entityId { locationBody["entity_id"] = String(entityId) }
+        if let placeId = location.placeId { locationBody["place_id"] = placeId }
+
+        let body: [String: Any] = [
+            "identifier": [] as [Any],
+            "location": locationBody
+        ]
+
+        var extra: [String: String] = [
+            "X-City-Id": String(cityId),
+            "X-O2-City-Id": String(cityId)
+        ]
+        if let lat = location.lat { extra["X-User-Defined-Lat"] = String(lat) }
+        if let lng = location.lng { extra["X-User-Defined-Long"] = String(lng) }
+
+        let data = try await post(
+            path: "/gw/gamification/food-rescue/create-cart",
+            token: accessToken,
+            json: body,
+            extraHeaders: extra
+        )
+        return try Self.parseFoodRescueDeal(data)
+    }
+
+    func fetchRestaurantMeta(resId: String, accessToken: String) async throws -> RestaurantMeta {
+        let data = try await post(
+            path: "/gw/menu/res_info/\(resId)",
+            token: accessToken,
+            json: ["should_fetch_res_info_from_agg": true]
+        )
+        return try Self.parseRestaurantMeta(resId: resId, data: data)
+    }
+
     // MARK: - HTTP
 
     private func get(path: String, token: String) async throws -> Data {
@@ -139,12 +190,20 @@ actor ZomatoAPI {
         return try await perform(req)
     }
 
-    private func post(path: String, token: String, json: [String: Any]) async throws -> Data {
+    private func post(
+        path: String,
+        token: String,
+        json: [String: Any],
+        extraHeaders: [String: String] = [:]
+    ) async throws -> Data {
         var req = URLRequest(url: URL(string: ZomatoConfig.apiBase + path)!)
         req.httpMethod = "POST"
         req.setValue("application/json; charset=UTF-8", forHTTPHeaderField: "Content-Type")
         req.httpBody = try JSONSerialization.data(withJSONObject: json)
         apply(token: token, to: &req)
+        for (k, v) in extraHeaders {
+            req.setValue(v, forHTTPHeaderField: k)
+        }
         return try await perform(req)
     }
 
@@ -152,6 +211,119 @@ actor ZomatoAPI {
         for (k, v) in ZomatoHeaders.common(accessToken: token) {
             request.setValue(v, forHTTPHeaderField: k)
         }
+    }
+
+    // MARK: - Deal / restaurant parsers
+
+    private static func parseFoodRescueDeal(_ data: Data) throws -> FoodRescueDealDetails {
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw APIError.decode("Invalid create-cart JSON")
+        }
+        // Walk nested SDUI for deeplink post_body + tracking
+        guard let response = root["response"] as? [String: Any] else {
+            throw APIError.decode("No active Food Rescue cart in response")
+        }
+
+        // Prefer deeplink post_body (stable structure from public RE)
+        if let deeplink = deepFind(response, key: "deeplink") as? [String: Any],
+           let postBodyStr = deeplink["post_body"] as? String,
+           let postData = postBodyStr.data(using: .utf8),
+           let post = try? JSONSerialization.jsonObject(with: postData) as? [String: Any] {
+            let cartId = post["cart_id"] as? String ?? ""
+            let context = post["context"] as? [String: Any] ?? [:]
+            let mod = context["cart_modification"] as? [String: Any] ?? [:]
+            let analytics = context["cart_analytics_data"] as? [String: Any] ?? [:]
+            let parentOrder = mod["ParentOrderID"] as? String
+            let viewers = Int(analytics["number_of_people_watching"] as? String ?? "")
+                ?? analytics["number_of_people_watching"] as? Int
+            let expiryRaw = analytics["cart_expiry_timestamp"] as? String
+                ?? (analytics["cart_expiry_timestamp"] as? NSNumber).map(String.init)
+            let expiry = expiryRaw.flatMap(TimeInterval.init)
+
+            var resId = ""
+            if let url = deeplink["url"] as? String,
+               let comps = URLComponents(string: url),
+               let rid = comps.queryItems?.first(where: { $0.name == "res_id" })?.value {
+                resId = rid
+            }
+
+            var cartFinal = 0.0
+            var catalog: Double?
+            if let tracking = deepFind(response, key: "tracking_data") as? [[String: Any]] {
+                for t in tracking {
+                    guard let payloadStr = t["payload"] as? String,
+                          let pdata = payloadStr.data(using: .utf8),
+                          let pjson = try? JSONSerialization.jsonObject(with: pdata) as? [String: Any],
+                          let value = pjson["value"] as? [String: Any] else { continue }
+                    if let c = value["cart_final_cost"] as? Double { cartFinal = c }
+                    else if let c = value["cart_final_cost"] as? Int { cartFinal = Double(c) }
+                    else if let c = value["cart_final_cost"] as? String { cartFinal = Double(c) ?? cartFinal }
+                    if let c = value["catalog_total_cost"] as? Double { catalog = c }
+                    else if let c = value["catalog_total_cost"] as? Int { catalog = Double(c) }
+                    else if let c = value["catalog_total_cost"] as? String { catalog = Double(c) }
+                    break
+                }
+            }
+
+            if resId.isEmpty { throw APIError.decode("Missing res_id in deal payload") }
+            return FoodRescueDealDetails(
+                resId: resId,
+                cartFinalCost: cartFinal,
+                viewersCount: viewers ?? 0,
+                cartId: cartId,
+                parentOrderId: parentOrder,
+                cartExpiryTimestamp: expiry,
+                catalogTotalCost: catalog
+            )
+        }
+
+        throw APIError.decode("Could not parse Food Rescue deal details")
+    }
+
+    private static func parseRestaurantMeta(resId: String, data: Data) throws -> RestaurantMeta {
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let results = root["results"] as? [Any] else {
+            throw APIError.decode("Invalid restaurant meta")
+        }
+        var name = "Restaurant"
+        var lat: Double?
+        var lng: Double?
+
+        for result in results {
+            guard let dict = result as? [String: Any],
+                  let snippet = dict["v4_image_text_snippet_type_3"] as? [String: Any],
+                  let items = snippet["items"] as? [[String: Any]] else { continue }
+            if let title = items.first?["title"] as? [String: Any],
+               let text = title["text"] as? String, !text.isEmpty {
+                name = text
+            }
+            for item in items {
+                guard let containers = item["icon_text_containers"] as? [[String: Any]] else { continue }
+                for container in containers {
+                    guard let click = container["click_action"] as? [String: Any],
+                          click["type"] as? String == "open_map",
+                          let openMap = click["open_map"] as? [String: Any] else { continue }
+                    lat = openMap["latitude"] as? Double ?? (openMap["latitude"] as? NSNumber)?.doubleValue
+                    lng = openMap["longitude"] as? Double ?? (openMap["longitude"] as? NSNumber)?.doubleValue
+                }
+            }
+        }
+        return RestaurantMeta(resId: resId, name: name, lat: lat, lng: lng)
+    }
+
+    /// Recursive key search in nested JSON.
+    private static func deepFind(_ any: Any, key: String) -> Any? {
+        if let dict = any as? [String: Any] {
+            if let v = dict[key] { return v }
+            for v in dict.values {
+                if let found = deepFind(v, key: key) { return found }
+            }
+        } else if let arr = any as? [Any] {
+            for v in arr {
+                if let found = deepFind(v, key: key) { return found }
+            }
+        }
+        return nil
     }
 
     private func perform(_ request: URLRequest) async throws -> Data {

@@ -7,7 +7,7 @@ final class MQTTMonitor: NSObject, CocoaMQTTDelegate {
     enum Event {
         case connected
         case disconnected(String?)
-        case message(id: String, eventType: FoodRescueEventType, timestamp: Date, raw: String)
+        case message(MQTTPayloadParser.Parsed)
         case log(String)
     }
 
@@ -94,47 +94,34 @@ final class MQTTMonitor: NSObject, CocoaMQTTDelegate {
 
     func mqtt(_ mqtt: CocoaMQTT, didReceiveMessage message: CocoaMQTTMessage, id: UInt16) {
         let raw = message.string ?? String(data: Data(message.payload), encoding: .utf8) ?? ""
-        guard let data = raw.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        guard let parsed = MQTTPayloadParser.parse(raw) else {
             onEvent?(.log("[\(locationName)] Non-JSON MQTT payload"))
             return
         }
 
-        let msgId = (json["id"] as? String) ?? UUID().uuidString
-        let dataObj = json["data"] as? [String: Any]
-        let eventType = FoodRescueEventType(raw: dataObj?["event_type"] as? String)
-
-        var ts = Date()
-        if let t = json["timestamp"] as? Double {
-            ts = Date(timeIntervalSince1970: t > 10_000_000_000 ? t / 1000 : t)
-        } else if let t = json["timestamp"] as? Int {
-            let d = Double(t)
-            ts = Date(timeIntervalSince1970: d > 10_000_000_000 ? d / 1000 : d)
-        }
-
         processedLock.lock()
-        let seen = processedIDs.contains(msgId)
+        let seen = processedIDs.contains(parsed.messageId)
         if !seen {
-            processedIDs.insert(msgId)
+            processedIDs.insert(parsed.messageId)
             if processedIDs.count > 500 {
                 processedIDs.removeAll(keepingCapacity: true)
             }
         }
         processedLock.unlock()
         if seen {
-            onEvent?(.log("[\(locationName)] Deduped \(msgId.prefix(8))…"))
+            onEvent?(.log("[\(locationName)] Deduped \(parsed.messageId.prefix(8))…"))
             return
         }
 
-        if eventType == .orderCancelled {
-            let age = Date().timeIntervalSince(ts)
+        if parsed.eventType == .orderCancelled {
+            let age = Date().timeIntervalSince(parsed.timestamp)
             if age > ZomatoConfig.staleMessageSeconds {
                 onEvent?(.log("[\(locationName)] Ignored stale cancel (\(Int(age))s old)"))
                 return
             }
         }
 
-        onEvent?(.message(id: msgId, eventType: eventType, timestamp: ts, raw: String(raw.prefix(280))))
+        onEvent?(.message(parsed))
     }
 
     func mqtt(_ mqtt: CocoaMQTT, didSubscribeTopics success: NSDictionary, failed: [String]) {

@@ -23,16 +23,44 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
-    func sendFoodRescueAlert(locationName: String, playSound: Bool) {
+    func sendFoodRescueAlert(for event: RescueEvent, playSound: Bool) {
         let content = UNMutableNotificationContent()
-        content.title = "Food Rescue · \(locationName)"
-        content.body = "A cancelled order is available near \(locationName). Open Zomato now to claim it."
+
+        if event.type == .orderCancelled {
+            content.title = event.restaurantName.map { "Food Rescue · \($0)" } ?? "Food Rescue nearby!"
+            var lines: [String] = []
+            lines.append("Near your \(event.locationName)")
+            if !event.locationAddress.isEmpty {
+                lines.append(event.locationAddress)
+            }
+            if let price = event.priceText {
+                lines.append(price)
+            }
+            if let viewers = event.viewersCount, viewers > 0 {
+                lines.append("\(viewers) watching")
+            }
+            if let orderId = event.orderId {
+                lines.append("Order #\(orderId)")
+            }
+            lines.append("Open Zomato now to claim.")
+            content.body = lines.joined(separator: " · ")
+        } else {
+            content.title = "Food Rescue claimed"
+            content.body = "Near \(event.locationName)" + (event.restaurantName.map { " · \($0)" } ?? "")
+        }
+
         content.sound = playSound ? .default : nil
         content.categoryIdentifier = "FOOD_RESCUE"
         content.interruptionLevel = .timeSensitive
+        content.userInfo = [
+            "addressId": event.addressId,
+            "locationName": event.locationName,
+            "orderId": event.orderId ?? "",
+            "restaurantName": event.restaurantName ?? ""
+        ]
 
         let request = UNNotificationRequest(
-            identifier: "fr-\(UUID().uuidString)",
+            identifier: "fr-\(event.id)-\(UUID().uuidString.prefix(6))",
             content: content,
             trigger: nil
         )
