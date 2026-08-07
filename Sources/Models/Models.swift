@@ -93,6 +93,16 @@ struct TabbedHomeEssentials: Equatable {
     var foodRescue: FoodRescueChannel?
 }
 
+// MARK: - Per-address monitor status (UI)
+
+struct LocationMonitorStatus: Identifiable, Equatable {
+    var id: Int { addressId }
+    let addressId: Int
+    let name: String
+    var state: MonitorState
+    var detail: String
+}
+
 // MARK: - Events
 
 enum FoodRescueEventType: String, Codable {
@@ -114,6 +124,8 @@ struct RescueEvent: Identifiable, Equatable {
     let type: FoodRescueEventType
     let timestamp: Date
     let rawPreview: String
+    let addressId: Int
+    let locationName: String
 }
 
 // MARK: - App connection state
@@ -138,6 +150,13 @@ enum MonitorState: Equatable {
     var isLive: Bool {
         if case .connected = self { return true }
         return false
+    }
+
+    var isTransient: Bool {
+        switch self {
+        case .connecting, .reconnecting: return true
+        default: return false
+        }
     }
 }
 
@@ -170,4 +189,9 @@ enum OTPChannel: String, CaseIterable, Identifiable {
         case .call: return "phone.fill"
         }
     }
+}
+
+enum AppLimits {
+    /// Soft cap so we don't open too many MQTT sockets.
+    static let maxMonitoredAddresses = 5
 }

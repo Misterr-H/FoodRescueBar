@@ -170,9 +170,14 @@ struct EventRow: View {
                 Text(event.type == .orderCancelled ? "Order cancelled — claimable" : "Order claimed")
                     .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
-                Text(event.timestamp.formatted(date: .omitted, time: .shortened))
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    Text(event.locationName)
+                        .lineLimit(1)
+                    Text("·")
+                    Text(event.timestamp.formatted(date: .omitted, time: .shortened))
+                }
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
         }

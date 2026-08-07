@@ -6,9 +6,9 @@ struct LocationView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HeaderBar(
-                title: "Choose area",
-                subtitle: "Food Rescue is scoped to a saved address",
-                backAction: state.selectedLocation != nil ? { state.screen = .home } : nil
+                title: "Choose areas",
+                subtitle: "Select up to \(AppLimits.maxMonitoredAddresses) addresses to watch",
+                backAction: state.selectedLocations.isEmpty ? nil : { state.screen = .home }
             )
 
             if state.isLoadingLocations {
@@ -35,17 +35,43 @@ struct LocationView: View {
                 }
                 .frCard()
             } else {
+                HStack {
+                    Text("\(state.selectedLocations.count)/\(AppLimits.maxMonitoredAddresses) selected")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if !state.selectedLocations.isEmpty {
+                        Button("Clear") {
+                            state.clearLocationSelection()
+                        }
+                        .font(.system(size: 11, weight: .semibold))
+                        .buttonStyle(.plain)
+                        .foregroundStyle(FRTheme.brand)
+                    }
+                }
+
                 VStack(spacing: 8) {
-                    ForEach(state.locations.prefix(6)) { location in
+                    ForEach(state.locations.prefix(8)) { location in
                         locationRow(location)
                     }
-                    if state.locations.count > 6 {
-                        Text("Showing first 6 of \(state.locations.count)")
+                    if state.locations.count > 8 {
+                        Text("Showing first 8 of \(state.locations.count)")
                             .font(.system(size: 10))
                             .foregroundStyle(.tertiary)
                             .frame(maxWidth: .infinity)
                     }
                 }
+
+                Button {
+                    state.confirmLocationSelection()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                        Text(continueLabel)
+                    }
+                }
+                .buttonStyle(PrimaryButtonStyle(enabled: !state.selectedLocations.isEmpty))
+                .disabled(state.selectedLocations.isEmpty)
 
                 Button {
                     Task { await state.loadLocations() }
@@ -69,13 +95,21 @@ struct LocationView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private var continueLabel: String {
+        let n = state.selectedLocations.count
+        if n == 0 { return "Select addresses" }
+        if n == 1 { return "Continue with 1 area" }
+        return "Continue with \(n) areas"
+    }
+
     private func locationRow(_ location: UserLocation) -> some View {
-        Button {
-            state.selectLocation(location)
+        let selected = state.isLocationSelected(location)
+        return Button {
+            state.toggleLocationSelection(location)
         } label: {
             HStack(alignment: .top, spacing: 10) {
-                Image(systemName: "mappin.circle.fill")
-                    .foregroundStyle(FRTheme.brand)
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(selected ? FRTheme.brand : Color.secondary)
                     .font(.system(size: 18))
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -91,24 +125,17 @@ struct LocationView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                    .padding(.top, 3)
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.primary.opacity(0.04))
+                    .fill(selected ? FRTheme.brand.opacity(0.08) : Color.primary.opacity(0.04))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .strokeBorder(
-                        state.selectedLocation?.addressId == location.addressId
-                            ? FRTheme.brand.opacity(0.45)
-                            : Color.primary.opacity(0.06),
+                        selected ? FRTheme.brand.opacity(0.45) : Color.primary.opacity(0.06),
                         lineWidth: 1
                     )
             )

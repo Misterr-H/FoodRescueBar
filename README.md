@@ -16,9 +16,10 @@ Food Rescue is a race: cancelled orders flash for nearby users for only a few mi
 
 - **Menu bar only** — no Dock icon (`LSUIElement`)
 - **Zomato OTP login** (SMS / WhatsApp / Call)
-- **Saved address picker** → Food Rescue cell channel
+- **Multi-address monitoring** — watch up to 5 saved addresses at once (parallel MQTT)
+- **Per-area status** — see which Home / Work / etc. cells are live
 - **Live MQTT** on Zomato’s consumer broker
-- **Time-sensitive notifications** + optional sound
+- **Time-sensitive notifications** (include area name) + optional sound
 - **Dedup + stale filter** so retained messages don’t spam you
 - **Alert cooldown** (configurable)
 - **Does not call create-cart** — won’t burn the official in-app pitch
@@ -65,9 +66,11 @@ The app has **no Dock icon** — look for it in the **menu bar**.
 
 1. Click the menu bar icon  
 2. Sign in with your Zomato phone number + OTP  
-3. Choose a saved address  
-4. Hit **Start listening**  
-5. When a cancel fires nearby → macOS alert → open Zomato and claim  
+3. **Multi-select** saved addresses (Home, Work, … — max 5)  
+4. Hit **Start listening** — each area gets its own MQTT subscription  
+5. When a cancel fires near any watched cell → alert names the area → open Zomato and claim  
+
+Stop listening before editing the address set.
 
 Keep the Mac awake and online. Sleep interrupts MQTT until the reliability loop reconnects.
 
@@ -77,9 +80,10 @@ Keep the Mac awake and online. Sleep interrupts MQTT until the reliability loop 
 Login (PKCE OAuth phone OTP)
   → GET  /gw/user/info
   → POST /gw/user/location/selection
-  → GET  /gw/tabbed-home?cell_id&address_id
-  → MQTT SUBSCRIBE food_rescue_cell_<cell>
-  → order_cancelled → UserNotifications
+  → for each selected address:
+       GET  /gw/tabbed-home?cell_id&address_id
+       MQTT SUBSCRIBE food_rescue_cell_<cell>   (own SSL connection)
+  → order_cancelled → UserNotifications (tagged with area name)
 ```
 
 **Intentionally not called:** `POST /gw/gamification/food-rescue/create-cart` (pitch-once on Zomato’s side).

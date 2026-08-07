@@ -37,8 +37,8 @@ struct FoodRescueBarApp: App {
     private var menuBarHelp: String {
         if !appState.isLoggedIn { return "FoodRescueBar — Sign in" }
         if appState.isMonitoring {
-            return "FoodRescueBar — \(appState.monitorState.label) · \(appState.selectedLocation?.name ?? "")"
+            return "FoodRescueBar — \(appState.monitorState.label) · \(appState.selectionSummary)"
         }
-        return "FoodRescueBar — Idle"
+        return "FoodRescueBar — \(appState.selectionSummary)"
     }
 }

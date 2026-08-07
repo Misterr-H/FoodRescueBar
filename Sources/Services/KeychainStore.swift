@@ -7,7 +7,8 @@ enum KeychainStore {
     enum Key: String {
         case accessToken
         case refreshToken
-        case selectedLocation
+        case selectedLocation   // legacy single address (migration)
+        case selectedLocations  // multi-address array
         case userProfile
     }
 
@@ -63,7 +64,7 @@ enum KeychainStore {
         delete(.accessToken)
         delete(.refreshToken)
         delete(.userProfile)
-        // keep selected location optional — clear for privacy
         delete(.selectedLocation)
+        delete(.selectedLocations)
     }
 }

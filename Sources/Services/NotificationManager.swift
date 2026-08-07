@@ -23,10 +23,10 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
-    func sendFoodRescueAlert(playSound: Bool) {
+    func sendFoodRescueAlert(locationName: String, playSound: Bool) {
         let content = UNMutableNotificationContent()
-        content.title = "Food Rescue nearby!"
-        content.body = "A cancelled order is available. Open Zomato now to claim it."
+        content.title = "Food Rescue · \(locationName)"
+        content.body = "A cancelled order is available near \(locationName). Open Zomato now to claim it."
         content.sound = playSound ? .default : nil
         content.categoryIdentifier = "FOOD_RESCUE"
         content.interruptionLevel = .timeSensitive
@@ -43,11 +43,9 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
             NSSound(named: "Glass")?.play()
         }
 
-        // Bounce dock / attention if possible (LSUIElement = true so no dock, but still ok)
         NSApp.requestUserAttention(.criticalRequest)
     }
 
-    // Show banner even when app is focused / menu open
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
@@ -65,7 +63,6 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     }
 
     static func openZomato() {
-        // Prefer installed Zomato / browser
         let candidates = [
             "zomato://",
             "https://www.zomato.com/order"

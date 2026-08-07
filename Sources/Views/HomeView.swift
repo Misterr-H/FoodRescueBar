@@ -7,7 +7,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 12) {
             HeaderBar(
                 title: "Food Rescue",
-                subtitle: state.user.map { "Hi, \($0.name)" } ?? "Listening for nearby cancels"
+                subtitle: state.user.map { "Hi, \($0.name)" } ?? "Multi-area listener"
             )
 
             statusCard
@@ -29,7 +29,8 @@ struct HomeView: View {
                     Text(state.lastConnectedDescription)
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 if state.isMonitoring {
@@ -45,35 +46,41 @@ struct HomeView: View {
 
             Divider().opacity(0.45)
 
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "mappin.and.ellipse")
-                    .foregroundStyle(FRTheme.brand)
-                    .font(.system(size: 14))
-                    .padding(.top, 1)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(state.selectedLocation?.name ?? "No address")
-                        .font(.system(size: 12, weight: .semibold))
-                        .lineLimit(1)
-                    Text(state.selectedLocation?.fullAddress ?? "Choose a saved Zomato address")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Button("Change") {
+            HStack {
+                Text("Areas")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button(state.isMonitoring ? "Locked" : "Edit") {
+                    guard !state.isMonitoring else { return }
                     state.screen = .location
                     Task { await state.loadLocations() }
                 }
                 .font(.system(size: 11, weight: .semibold))
                 .buttonStyle(.plain)
-                .foregroundStyle(FRTheme.brand)
-                .padding(.top, 1)
+                .foregroundStyle(state.isMonitoring ? Color.secondary : FRTheme.brand)
+            }
+
+            if state.selectedLocations.isEmpty {
+                Text("No addresses selected — tap Edit to choose areas.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(spacing: 6) {
+                    ForEach(displayStatuses) { status in
+                        locationStatusRow(status)
+                    }
+                }
+            }
+
+            if state.isMonitoring {
+                Text("Stop listening to change which areas are watched.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
             }
 
             HStack(spacing: 8) {
+                statPill(title: "Areas", value: "\(state.selectedLocations.count)")
                 statPill(title: "Alerts today", value: "\(state.alertCountToday)")
                 statPill(
                     title: "Last alert",
@@ -82,6 +89,64 @@ struct HomeView: View {
             }
         }
         .frCard()
+    }
+
+    private var displayStatuses: [LocationMonitorStatus] {
+        if !state.locationStatuses.isEmpty {
+            return state.locationStatuses
+        }
+        return state.selectedLocations.map {
+            LocationMonitorStatus(
+                addressId: $0.addressId,
+                name: $0.name,
+                state: .idle,
+                detail: $0.fullAddress
+            )
+        }
+    }
+
+    private func locationStatusRow(_ status: LocationMonitorStatus) -> some View {
+        HStack(spacing: 8) {
+            StatusDot(color: color(for: status.state), pulse: status.state.isLive)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(status.name)
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
+                Text(status.detail)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            Text(shortLabel(for: status.state))
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(color(for: status.state))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
+    }
+
+    private func color(for state: MonitorState) -> Color {
+        switch state {
+        case .connected: return FRTheme.success
+        case .connecting, .reconnecting: return FRTheme.warning
+        case .error: return FRTheme.brand
+        case .idle: return .secondary
+        }
+    }
+
+    private func shortLabel(for state: MonitorState) -> String {
+        switch state {
+        case .connected: return "Live"
+        case .connecting: return "…"
+        case .reconnecting: return "Retry"
+        case .error: return "Err"
+        case .idle: return "Off"
+        }
     }
 
     private func statPill(title: String, value: String) -> some View {
@@ -95,7 +160,7 @@ struct HomeView: View {
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 8)
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -113,7 +178,8 @@ struct HomeView: View {
                     Text(state.isMonitoring ? "Stop listening" : "Start listening")
                 }
             }
-            .buttonStyle(PrimaryButtonStyle())
+            .buttonStyle(PrimaryButtonStyle(enabled: !state.selectedLocations.isEmpty || state.isMonitoring))
+            .disabled(state.selectedLocations.isEmpty && !state.isMonitoring)
 
             HStack(spacing: 8) {
                 Button {
@@ -146,11 +212,11 @@ struct HomeView: View {
                     .frCard(padding: 10)
             } else {
                 VStack(spacing: 4) {
-                    ForEach(state.events.prefix(5)) { event in
+                    ForEach(state.events.prefix(6)) { event in
                         EventRow(event: event)
                     }
-                    if state.events.count > 5 {
-                        Text("+\(state.events.count - 5) more")
+                    if state.events.count > 6 {
+                        Text("+\(state.events.count - 6) more")
                             .font(.system(size: 10))
                             .foregroundStyle(.tertiary)
                             .frame(maxWidth: .infinity, alignment: .center)

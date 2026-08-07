@@ -2,7 +2,7 @@ import Foundation
 import Security
 import CocoaMQTT
 
-/// Thread-safe MQTT listener for Food Rescue cell topics.
+/// One MQTT connection for a single Food Rescue cell / address.
 final class MQTTMonitor: NSObject, CocoaMQTTDelegate {
     enum Event {
         case connected
@@ -10,6 +10,9 @@ final class MQTTMonitor: NSObject, CocoaMQTTDelegate {
         case message(id: String, eventType: FoodRescueEventType, timestamp: Date, raw: String)
         case log(String)
     }
+
+    let addressId: Int
+    let locationName: String
 
     var onEvent: ((Event) -> Void)?
 
@@ -19,11 +22,17 @@ final class MQTTMonitor: NSObject, CocoaMQTTDelegate {
     private var processedIDs = Set<String>()
     private var lastConnectedAt: Date?
 
+    init(addressId: Int, locationName: String) {
+        self.addressId = addressId
+        self.locationName = locationName
+        super.init()
+    }
+
     func connect(channel: FoodRescueChannel) {
         disconnect()
         self.channel = channel
 
-        let clientID = "frbar\(Int(Date().timeIntervalSince1970))\(Int.random(in: 100...999))"
+        let clientID = "frbar\(addressId)\(Int(Date().timeIntervalSince1970) % 100_000)\(Int.random(in: 10...99))"
         let mqtt = CocoaMQTT(clientID: clientID, host: "hedwig.zomato.com", port: 443)
         mqtt.username = channel.client.username
         mqtt.password = channel.client.password
@@ -36,7 +45,7 @@ final class MQTTMonitor: NSObject, CocoaMQTTDelegate {
         mqtt.logLevel = .warning
         self.mqtt = mqtt
 
-        onEvent?(.log("Connecting MQTT as \(channel.client.username)…"))
+        onEvent?(.log("[\(locationName)] Connecting MQTT…"))
         _ = mqtt.connect()
     }
 
@@ -51,11 +60,6 @@ final class MQTTMonitor: NSObject, CocoaMQTTDelegate {
 
     var isConnected: Bool {
         mqtt?.connState == .connected
-    }
-
-    var secondsSinceConnect: TimeInterval? {
-        guard let lastConnectedAt else { return nil }
-        return Date().timeIntervalSince(lastConnectedAt)
     }
 
     func shouldForceReconnect(interval: TimeInterval = ZomatoConfig.forceReconnectSeconds) -> Bool {
@@ -77,7 +81,7 @@ final class MQTTMonitor: NSObject, CocoaMQTTDelegate {
                 default: qos = .qos1
                 }
                 mqtt.subscribe(channel.channelName, qos: qos)
-                onEvent?(.log("Subscribed to \(channel.channelName)"))
+                onEvent?(.log("[\(locationName)] Subscribed to \(channel.channelName)"))
             }
         } else {
             onEvent?(.disconnected("CONNACK \(ack)"))
@@ -92,7 +96,7 @@ final class MQTTMonitor: NSObject, CocoaMQTTDelegate {
         let raw = message.string ?? String(data: Data(message.payload), encoding: .utf8) ?? ""
         guard let data = raw.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            onEvent?(.log("Non-JSON MQTT payload"))
+            onEvent?(.log("[\(locationName)] Non-JSON MQTT payload"))
             return
         }
 
@@ -118,14 +122,14 @@ final class MQTTMonitor: NSObject, CocoaMQTTDelegate {
         }
         processedLock.unlock()
         if seen {
-            onEvent?(.log("Deduped \(msgId.prefix(8))…"))
+            onEvent?(.log("[\(locationName)] Deduped \(msgId.prefix(8))…"))
             return
         }
 
         if eventType == .orderCancelled {
             let age = Date().timeIntervalSince(ts)
             if age > ZomatoConfig.staleMessageSeconds {
-                onEvent?(.log("Ignored stale cancel (\(Int(age))s old)"))
+                onEvent?(.log("[\(locationName)] Ignored stale cancel (\(Int(age))s old)"))
                 return
             }
         }
@@ -135,7 +139,7 @@ final class MQTTMonitor: NSObject, CocoaMQTTDelegate {
 
     func mqtt(_ mqtt: CocoaMQTT, didSubscribeTopics success: NSDictionary, failed: [String]) {
         if !failed.isEmpty {
-            onEvent?(.log("Subscribe failed: \(failed.joined(separator: ", "))"))
+            onEvent?(.log("[\(locationName)] Subscribe failed: \(failed.joined(separator: ", "))"))
         }
     }
 
@@ -150,7 +154,7 @@ final class MQTTMonitor: NSObject, CocoaMQTTDelegate {
     }
 
     func mqtt(_ mqtt: CocoaMQTT, didStateChangeTo state: CocoaMQTTConnState) {
-        onEvent?(.log("MQTT state: \(state)"))
+        onEvent?(.log("[\(locationName)] MQTT state: \(state)"))
     }
 
     func mqtt(_ mqtt: CocoaMQTT, didReceive trust: SecTrust, completionHandler: @escaping (Bool) -> Void) {

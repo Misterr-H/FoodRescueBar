@@ -18,15 +18,16 @@ final class AppState: ObservableObject {
     @Published var user: ZomatoUser?
     @Published private(set) var isLoggedIn = false
 
-    // Location
+    // Locations (multi-select)
     @Published var locations: [UserLocation] = []
-    @Published var selectedLocation: UserLocation?
+    @Published var selectedLocations: [UserLocation] = []
     @Published var isLoadingLocations = false
 
-    // Monitoring
+    // Monitoring (aggregate + per-address)
     @Published var monitorState: MonitorState = .idle
     @Published var isMonitoring = false
     @Published var lastConnectedDescription = "Not connected"
+    @Published var locationStatuses: [LocationMonitorStatus] = []
     @Published var events: [RescueEvent] = []
     @Published var alertCountToday = 0
     @Published var lastAlertAt: Date?
@@ -40,20 +41,20 @@ final class AppState: ObservableObject {
 
     private let auth = AuthService()
     private let api = ZomatoAPI()
-    private let mqtt = MQTTMonitor()
     private var tokens: AuthTokens?
-    private var channel: FoodRescueChannel?
-    private var cityId: Int = 0
+
+    /// addressId → live MQTT session
+    private var monitors: [Int: MQTTMonitor] = [:]
+    /// addressId → last Food Rescue channel (for reconnect)
+    private var channels: [Int: FoodRescueChannel] = [:]
+    /// addressId → per-address state
+    private var statusByAddress: [Int: LocationMonitorStatus] = [:]
+
     private var reliabilityTask: Task<Void, Never>?
     private var lastNotifiedAt: Date = .distantPast
     private var connectedAt: Date?
 
     init() {
-        mqtt.onEvent = { [weak self] event in
-            Task { @MainActor in
-                self?.handleMQTT(event)
-            }
-        }
         restoreSession()
     }
 
@@ -68,10 +69,11 @@ final class AppState: ObservableObject {
         tokens = AuthTokens(accessToken: access, refreshToken: refresh)
         isLoggedIn = true
         user = KeychainStore.getCodable(ZomatoUser.self, for: .userProfile)
-        selectedLocation = KeychainStore.getCodable(UserLocation.self, for: .selectedLocation)
+        selectedLocations = loadPersistedLocations()
 
-        if selectedLocation != nil {
+        if !selectedLocations.isEmpty {
             screen = .home
+            rebuildStatusPlaceholders()
             Task { await refreshProfileQuietly() }
         } else {
             screen = .location
@@ -79,7 +81,34 @@ final class AppState: ObservableObject {
         }
     }
 
-    // MARK: - Auth actions
+    private func loadPersistedLocations() -> [UserLocation] {
+        if let multi = KeychainStore.getCodable([UserLocation].self, for: .selectedLocations), !multi.isEmpty {
+            return Array(multi.prefix(AppLimits.maxMonitoredAddresses))
+        }
+        // Migrate legacy single selection
+        if let single = KeychainStore.getCodable(UserLocation.self, for: .selectedLocation) {
+            KeychainStore.setCodable([single], for: .selectedLocations)
+            return [single]
+        }
+        return []
+    }
+
+    func persistSelectedLocations() {
+        KeychainStore.setCodable(selectedLocations, for: .selectedLocations)
+        if let first = selectedLocations.first {
+            KeychainStore.setCodable(first, for: .selectedLocation)
+        } else {
+            KeychainStore.delete(.selectedLocation)
+        }
+    }
+
+    func clearLocationSelection() {
+        selectedLocations = []
+        persistSelectedLocations()
+        rebuildStatusPlaceholders()
+    }
+
+    // MARK: - Auth
 
     func sendOTP() async {
         let phone = normalizedPhone
@@ -136,7 +165,9 @@ final class AppState: ObservableObject {
         tokens = nil
         user = nil
         locations = []
-        selectedLocation = nil
+        selectedLocations = []
+        locationStatuses = []
+        statusByAddress = [:]
         isLoggedIn = false
         otpSent = false
         otpCode = ""
@@ -155,7 +186,7 @@ final class AppState: ObservableObject {
         return digits
     }
 
-    // MARK: - Locations
+    // MARK: - Locations (multi)
 
     func loadLocations() async {
         guard let token = tokens?.accessToken else { return }
@@ -163,10 +194,12 @@ final class AppState: ObservableObject {
         defer { isLoadingLocations = false }
         do {
             locations = try await api.fetchLocations(accessToken: token)
-            if let selected = selectedLocation,
-               let match = locations.first(where: { $0.addressId == selected.addressId }) {
-                selectedLocation = match
+            // Refresh selected objects from server list when possible
+            selectedLocations = selectedLocations.compactMap { sel in
+                locations.first(where: { $0.addressId == sel.addressId }) ?? sel
             }
+            persistSelectedLocations()
+            rebuildStatusPlaceholders()
         } catch let err as APIError where err == .unauthorized || isUnauthorized(err) {
             await forceReauth()
         } catch {
@@ -174,18 +207,86 @@ final class AppState: ObservableObject {
         }
     }
 
-    func selectLocation(_ location: UserLocation) {
-        selectedLocation = location
-        KeychainStore.setCodable(location, for: .selectedLocation)
+    func isLocationSelected(_ location: UserLocation) -> Bool {
+        selectedLocations.contains(where: { $0.addressId == location.addressId })
+    }
+
+    func toggleLocationSelection(_ location: UserLocation) {
+        if let idx = selectedLocations.firstIndex(where: { $0.addressId == location.addressId }) {
+            selectedLocations.remove(at: idx)
+        } else {
+            guard selectedLocations.count < AppLimits.maxMonitoredAddresses else {
+                flash("You can monitor up to \(AppLimits.maxMonitoredAddresses) addresses", error: true)
+                return
+            }
+            // Avoid duplicate cells (same rescue topic)
+            if selectedLocations.contains(where: { $0.cellId == location.cellId && $0.addressId != location.addressId }) {
+                flash("Another selected address already uses this delivery cell", error: true)
+                return
+            }
+            selectedLocations.append(location)
+        }
+        persistSelectedLocations()
+        rebuildStatusPlaceholders()
+    }
+
+    func confirmLocationSelection() {
+        guard !selectedLocations.isEmpty else {
+            flash("Select at least one address", error: true)
+            return
+        }
+        persistSelectedLocations()
+        rebuildStatusPlaceholders()
         screen = .home
-        flash("Monitoring area: \(location.name)")
+        let names = selectedLocations.map(\.name).joined(separator: ", ")
+        flash("Watching \(selectedLocations.count) area\(selectedLocations.count == 1 ? "" : "s"): \(names)")
+    }
+
+    private func rebuildStatusPlaceholders() {
+        // Keep live states if monitoring; otherwise idle placeholders
+        var next: [LocationMonitorStatus] = []
+        for loc in selectedLocations {
+            if let existing = statusByAddress[loc.addressId], isMonitoring {
+                next.append(LocationMonitorStatus(
+                    addressId: loc.addressId,
+                    name: loc.name,
+                    state: existing.state,
+                    detail: existing.detail
+                ))
+            } else if !isMonitoring {
+                let status = LocationMonitorStatus(
+                    addressId: loc.addressId,
+                    name: loc.name,
+                    state: .idle,
+                    detail: "Not listening"
+                )
+                statusByAddress[loc.addressId] = status
+                next.append(status)
+            } else if let existing = statusByAddress[loc.addressId] {
+                next.append(existing)
+            } else {
+                let status = LocationMonitorStatus(
+                    addressId: loc.addressId,
+                    name: loc.name,
+                    state: .idle,
+                    detail: "—"
+                )
+                statusByAddress[loc.addressId] = status
+                next.append(status)
+            }
+        }
+        // Drop statuses for deselected addresses
+        let ids = Set(selectedLocations.map(\.addressId))
+        statusByAddress = statusByAddress.filter { ids.contains($0.key) }
+        locationStatuses = next.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        recomputeAggregateState()
     }
 
     // MARK: - Monitoring
 
     func startMonitoring() async {
-        guard let location = selectedLocation, let token = tokens?.accessToken else {
-            flash("Pick a saved address first", error: true)
+        guard !selectedLocations.isEmpty, let token = tokens?.accessToken else {
+            flash("Pick at least one saved address first", error: true)
             return
         }
 
@@ -193,28 +294,73 @@ final class AppState: ObservableObject {
 
         isMonitoring = true
         monitorState = .connecting
-        lastConnectedDescription = "Fetching Food Rescue channel…"
+        lastConnectedDescription = "Connecting \(selectedLocations.count) area\(selectedLocations.count == 1 ? "" : "s")…"
 
+        // Tear down any prior sessions
+        for m in monitors.values { m.disconnect() }
+        monitors.removeAll()
+        channels.removeAll()
+
+        for loc in selectedLocations {
+            setStatus(addressId: loc.addressId, name: loc.name, state: .connecting, detail: "Fetching channel…")
+        }
+        recomputeAggregateState()
+
+        await withTaskGroup(of: Void.self) { group in
+            for location in selectedLocations {
+                group.addTask { @MainActor in
+                    await self.connectLocation(location, token: token, initial: true)
+                }
+            }
+        }
+
+        startReliabilityLoop()
+        recomputeAggregateState()
+
+        let live = locationStatuses.filter { $0.state.isLive }.count
+        if live > 0 {
+            flash("Listening on \(live)/\(selectedLocations.count) address\(selectedLocations.count == 1 ? "" : "es")")
+        } else {
+            flash("Could not connect any Food Rescue channels", error: true)
+        }
+    }
+
+    private func connectLocation(_ location: UserLocation, token: String, initial: Bool) async {
+        setStatus(addressId: location.addressId, name: location.name, state: .connecting, detail: "Fetching channel…")
         do {
             let essentials = try await api.fetchTabbedHome(
                 cellId: location.cellId,
                 addressId: location.addressId,
                 accessToken: token
             )
-            cityId = essentials.cityId
             guard let fr = essentials.foodRescue else {
-                isMonitoring = false
-                monitorState = .error("No Food Rescue channel")
-                flash("Food Rescue isn’t available for this address right now.", error: true)
+                setStatus(
+                    addressId: location.addressId,
+                    name: location.name,
+                    state: .error("No channel"),
+                    detail: "Food Rescue unavailable"
+                )
                 return
             }
-            channel = fr
-            mqtt.connect(channel: fr)
-            startReliabilityLoop()
+            channels[location.addressId] = fr
+
+            let monitor = MQTTMonitor(addressId: location.addressId, locationName: location.name)
+            monitor.onEvent = { [weak self] event in
+                Task { @MainActor in
+                    self?.handleMQTT(event, addressId: location.addressId, locationName: location.name)
+                }
+            }
+            monitors[location.addressId]?.disconnect()
+            monitors[location.addressId] = monitor
+            monitor.connect(channel: fr)
+            setStatus(addressId: location.addressId, name: location.name, state: .connecting, detail: "MQTT connecting…")
         } catch {
-            isMonitoring = false
-            monitorState = .error(error.localizedDescription)
-            flash(error.localizedDescription, error: true)
+            setStatus(
+                addressId: location.addressId,
+                name: location.name,
+                state: .error("Failed"),
+                detail: error.localizedDescription
+            )
             if isUnauthorized(error) {
                 await forceReauth()
             }
@@ -224,11 +370,17 @@ final class AppState: ObservableObject {
     func stopMonitoring() {
         reliabilityTask?.cancel()
         reliabilityTask = nil
-        mqtt.disconnect()
+        for m in monitors.values { m.disconnect() }
+        monitors.removeAll()
+        channels.removeAll()
         isMonitoring = false
         monitorState = .idle
         lastConnectedDescription = "Stopped"
         connectedAt = nil
+        for loc in selectedLocations {
+            setStatus(addressId: loc.addressId, name: loc.name, state: .idle, detail: "Stopped")
+        }
+        recomputeAggregateState()
     }
 
     func toggleMonitoring() async {
@@ -252,61 +404,58 @@ final class AppState: ObservableObject {
     }
 
     private func reliabilityTick() async {
-        guard isMonitoring, let location = selectedLocation, let token = tokens?.accessToken else { return }
+        guard isMonitoring, let token = tokens?.accessToken else { return }
 
-        // Refresh channel credentials periodically / on disconnect
-        let needsReconnect = !mqtt.isConnected || mqtt.shouldForceReconnect()
-        if needsReconnect {
-            monitorState = .reconnecting
-            lastConnectedDescription = "Refreshing session…"
-            do {
-                let essentials = try await api.fetchTabbedHome(
-                    cellId: location.cellId,
+        for location in selectedLocations {
+            let monitor = monitors[location.addressId]
+            let needsReconnect = monitor == nil || !(monitor?.isConnected ?? false) || (monitor?.shouldForceReconnect() ?? true)
+            if needsReconnect {
+                setStatus(
                     addressId: location.addressId,
-                    accessToken: token
+                    name: location.name,
+                    state: .reconnecting,
+                    detail: "Refreshing…"
                 )
-                if let fr = essentials.foodRescue {
-                    channel = fr
-                    cityId = essentials.cityId
-                    mqtt.connect(channel: fr)
-                } else {
-                    monitorState = .error("Channel missing")
-                }
-            } catch {
-                monitorState = .error(error.localizedDescription)
-                if isUnauthorized(error) {
-                    await forceReauth()
-                }
+                await connectLocation(location, token: token, initial: false)
             }
-        } else if mqtt.isConnected {
-            monitorState = .connected
-            updateConnectedDescription()
         }
+        recomputeAggregateState()
     }
 
-    private func handleMQTT(_ event: MQTTMonitor.Event) {
+    private func handleMQTT(_ event: MQTTMonitor.Event, addressId: Int, locationName: String) {
         switch event {
         case .connected:
             connectedAt = Date()
-            monitorState = .connected
-            updateConnectedDescription()
-            flash("Listening for Food Rescue near \(selectedLocation?.name ?? "you")")
+            setStatus(addressId: addressId, name: locationName, state: .connected, detail: "Listening")
+            recomputeAggregateState()
 
         case .disconnected(let reason):
             if isMonitoring {
-                monitorState = .reconnecting
-                lastConnectedDescription = reason.map { "Disconnected: \($0)" } ?? "Disconnected"
+                setStatus(
+                    addressId: addressId,
+                    name: locationName,
+                    state: .reconnecting,
+                    detail: reason.map { "Disconnected: \($0)" } ?? "Disconnected"
+                )
             } else {
-                monitorState = .idle
+                setStatus(addressId: addressId, name: locationName, state: .idle, detail: "Idle")
             }
+            recomputeAggregateState()
 
         case .message(let id, let type, let timestamp, let raw):
-            let item = RescueEvent(id: id, type: type, timestamp: timestamp, rawPreview: raw)
+            let item = RescueEvent(
+                id: "\(addressId)-\(id)",
+                type: type,
+                timestamp: timestamp,
+                rawPreview: raw,
+                addressId: addressId,
+                locationName: locationName
+            )
             events.insert(item, at: 0)
-            if events.count > 40 { events = Array(events.prefix(40)) }
+            if events.count > 50 { events = Array(events.prefix(50)) }
 
             if type == .orderCancelled {
-                handleCancelAlert()
+                handleCancelAlert(locationName: locationName)
             }
 
         case .log:
@@ -314,26 +463,67 @@ final class AppState: ObservableObject {
         }
     }
 
-    private func handleCancelAlert() {
+    private func handleCancelAlert(locationName: String) {
         let now = Date()
         let elapsed = now.timeIntervalSince(lastNotifiedAt)
         guard elapsed >= cooldownSeconds else { return }
         lastNotifiedAt = now
         lastAlertAt = now
         alertCountToday += 1
-        NotificationManager.shared.sendFoodRescueAlert(playSound: playSound)
+        NotificationManager.shared.sendFoodRescueAlert(locationName: locationName, playSound: playSound)
     }
 
-    private func updateConnectedDescription() {
-        if let connectedAt {
+    private func setStatus(addressId: Int, name: String, state: MonitorState, detail: String) {
+        let status = LocationMonitorStatus(addressId: addressId, name: name, state: state, detail: detail)
+        statusByAddress[addressId] = status
+        locationStatuses = selectedLocations.compactMap { statusByAddress[$0.addressId] }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private func recomputeAggregateState() {
+        let statuses = locationStatuses
+        guard isMonitoring else {
+            monitorState = .idle
+            lastConnectedDescription = selectedLocations.isEmpty
+                ? "No addresses selected"
+                : "\(selectedLocations.count) address\(selectedLocations.count == 1 ? "" : "es") ready"
+            return
+        }
+
+        let live = statuses.filter { $0.state.isLive }.count
+        let errors = statuses.filter {
+            if case .error = $0.state { return true }
+            return false
+        }.count
+        let connecting = statuses.filter { $0.state.isTransient }.count
+        let total = max(selectedLocations.count, 1)
+
+        if live == total {
+            monitorState = .connected
+            lastConnectedDescription = live == 1
+                ? "Listening on \(statuses.first?.name ?? "1 area")"
+                : "Listening on all \(live) areas"
+        } else if live > 0 {
+            monitorState = .connected
+            lastConnectedDescription = "Listening on \(live)/\(total) areas"
+        } else if connecting > 0 {
+            monitorState = .connecting
+            lastConnectedDescription = "Connecting \(connecting)/\(total)…"
+        } else if errors == total {
+            monitorState = .error("All areas failed")
+            lastConnectedDescription = "No active channels"
+        } else {
+            monitorState = .reconnecting
+            lastConnectedDescription = "Reconnecting…"
+        }
+
+        if let connectedAt, live > 0 {
             let mins = Int(Date().timeIntervalSince(connectedAt) / 60)
-            if mins < 1 {
-                lastConnectedDescription = "Connected just now"
-            } else if mins == 1 {
-                lastConnectedDescription = "Connected 1 min ago"
-            } else {
-                lastConnectedDescription = "Connected \(mins) min ago"
-            }
+            let age: String
+            if mins < 1 { age = "just now" }
+            else if mins == 1 { age = "1 min ago" }
+            else { age = "\(mins) min ago" }
+            lastConnectedDescription += " · \(age)"
         }
     }
 
@@ -391,6 +581,13 @@ final class AppState: ObservableObject {
         case .error: return FRTheme.brand
         case .idle: return .secondary
         }
+    }
+
+    var selectionSummary: String {
+        let n = selectedLocations.count
+        if n == 0 { return "No addresses" }
+        if n == 1 { return selectedLocations[0].name }
+        return "\(n) addresses"
     }
 }
 
