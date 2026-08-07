@@ -1,0 +1,47 @@
+name: FoodRescueBar
+options:
+  bundleIdPrefix: com.foodrescuebar
+  deploymentTarget:
+    macOS: "14.0"
+  developmentLanguage: en
+  createIntermediateGroups: true
+  xcodeVersion: "16.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    ENABLE_HARDENED_RUNTIME: YES
+    GENERATE_INFOPLIST_FILE: NO
+
+packages:
+  CocoaMQTT:
+    url: https://github.com/emqx/CocoaMQTT
+    from: 2.1.6
+
+targets:
+  FoodRescueBar:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources
+    resources:
+      - path: Resources/Assets.xcassets
+    dependencies:
+      - package: CocoaMQTT
+        product: CocoaMQTT
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.foodrescuebar.app
+        PRODUCT_NAME: FoodRescueBar
+        INFOPLIST_FILE: Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Resources/FoodRescueBar.entitlements
+        LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
+        COMBINE_HIDPI_IMAGES: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_EMIT_LOC_STRINGS: YES
+    entitlements:
+      path: Resources/FoodRescueBar.entitlements

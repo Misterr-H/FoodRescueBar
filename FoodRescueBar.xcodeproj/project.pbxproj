@@ -1,0 +1,423 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		03258C7B66C5FED1683BD405 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = B260CD9A9B733C9920A51751 /* Models.swift */; };
+		09AC7B43F986DEE6E0DA1DDD /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E1604380A32D09EB66A44E9 /* KeychainStore.swift */; };
+		0CBACECE48764774369B0516 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50724F3FE82587F8BEB215A /* LoginView.swift */; };
+		2694D5125086C78D0CCE3CC7 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61DCF9B199B2E6AC64D504B2 /* Theme.swift */; };
+		2D0C54E591279D58D1D3CE92 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1C23664775EB32C275658A /* AuthService.swift */; };
+		3F12CE0B032731CF8E315B40 /* MQTTMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2DBF4C8E01FB5931D750146 /* MQTTMonitor.swift */; };
+		465DA2DFEF5FE9757D46DD76 /* MenuBarRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44902894158FDB15BDAE0D12 /* MenuBarRootView.swift */; };
+		498376A07FAFC6CDC054336F /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12FF9DF92897B740D07737C9 /* HomeView.swift */; };
+		4D89B2462EFF6040158592B3 /* ZomatoHeaders.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAA869BB1B3B2B5759E4A229 /* ZomatoHeaders.swift */; };
+		592E2F22A3982D5A26F4C1BC /* ZomatoAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 300983FF9845D1FD9E326503 /* ZomatoAPI.swift */; };
+		8A323385D56B20A9811976FB /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6964574318DDDB11D6D837FF /* AppState.swift */; };
+		9604A2C75100AACA07D78578 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEDAFA8C669173AC866DFCCF /* Components.swift */; };
+		9997034BC1B532357E8BB90B /* CocoaMQTT in Frameworks */ = {isa = PBXBuildFile; productRef = 4594C4257CA9D874CC1F60BE /* CocoaMQTT */; };
+		9CBE9ED5F6B8AA5FB60285E5 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 801D5C6EEF688358DB4F125B /* NotificationManager.swift */; };
+		AA3CC50A881097756836CA33 /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEADE560DBAAF9981CD9BBD6 /* LaunchAtLogin.swift */; };
+		B30520271FC40AC3B2A9CCFC /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A22534E120395AD653AE828 /* SettingsView.swift */; };
+		CE7A854A80543C11B9615108 /* LocationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C595918AF7410CDF7688A42 /* LocationView.swift */; };
+		D19F1B29292DA7BC47803B33 /* FoodRescueBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97A4B935E5FD16C81E570B85 /* FoodRescueBarApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		12FF9DF92897B740D07737C9 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		1E30C6F186544AB2BC4DF945 /* FoodRescueBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FoodRescueBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		300983FF9845D1FD9E326503 /* ZomatoAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZomatoAPI.swift; sourceTree = "<group>"; };
+		44902894158FDB15BDAE0D12 /* MenuBarRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarRootView.swift; sourceTree = "<group>"; };
+		4A22534E120395AD653AE828 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		61DCF9B199B2E6AC64D504B2 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		6964574318DDDB11D6D837FF /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		7E1604380A32D09EB66A44E9 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		801D5C6EEF688358DB4F125B /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
+		8C595918AF7410CDF7688A42 /* LocationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationView.swift; sourceTree = "<group>"; };
+		97A4B935E5FD16C81E570B85 /* FoodRescueBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodRescueBarApp.swift; sourceTree = "<group>"; };
+		9C1C23664775EB32C275658A /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		B260CD9A9B733C9920A51751 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		BEADE560DBAAF9981CD9BBD6 /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
+		D2DBF4C8E01FB5931D750146 /* MQTTMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MQTTMonitor.swift; sourceTree = "<group>"; };
+		E50724F3FE82587F8BEB215A /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		FAA869BB1B3B2B5759E4A229 /* ZomatoHeaders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZomatoHeaders.swift; sourceTree = "<group>"; };
+		FEDAFA8C669173AC866DFCCF /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		7D8A9DE430DA58F9AA1E95D9 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9997034BC1B532357E8BB90B /* CocoaMQTT in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0796F1FBE0796C8243C7EA34 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				9C1C23664775EB32C275658A /* AuthService.swift */,
+				7E1604380A32D09EB66A44E9 /* KeychainStore.swift */,
+				BEADE560DBAAF9981CD9BBD6 /* LaunchAtLogin.swift */,
+				D2DBF4C8E01FB5931D750146 /* MQTTMonitor.swift */,
+				801D5C6EEF688358DB4F125B /* NotificationManager.swift */,
+				300983FF9845D1FD9E326503 /* ZomatoAPI.swift */,
+				FAA869BB1B3B2B5759E4A229 /* ZomatoHeaders.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		38392872D01C13554F770559 = {
+			isa = PBXGroup;
+			children = (
+				D4AE247BC4196CF43AF489A2 /* Sources */,
+				968AAEA6671F667D26D36E2D /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		6D66815E97922112BAEADBAF /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				FEDAFA8C669173AC866DFCCF /* Components.swift */,
+				12FF9DF92897B740D07737C9 /* HomeView.swift */,
+				8C595918AF7410CDF7688A42 /* LocationView.swift */,
+				E50724F3FE82587F8BEB215A /* LoginView.swift */,
+				44902894158FDB15BDAE0D12 /* MenuBarRootView.swift */,
+				4A22534E120395AD653AE828 /* SettingsView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		930353F39D871935DA92132C /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				61DCF9B199B2E6AC64D504B2 /* Theme.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		968AAEA6671F667D26D36E2D /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1E30C6F186544AB2BC4DF945 /* FoodRescueBar.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D4AE247BC4196CF43AF489A2 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				6964574318DDDB11D6D837FF /* AppState.swift */,
+				97A4B935E5FD16C81E570B85 /* FoodRescueBarApp.swift */,
+				F2C8CC8EC56CA9F8F632A346 /* Models */,
+				0796F1FBE0796C8243C7EA34 /* Services */,
+				930353F39D871935DA92132C /* Theme */,
+				6D66815E97922112BAEADBAF /* Views */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		F2C8CC8EC56CA9F8F632A346 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				B260CD9A9B733C9920A51751 /* Models.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		997FE68EAB44426DB8429A66 /* FoodRescueBar */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 004783FC712847AD2AAC8DB0 /* Build configuration list for PBXNativeTarget "FoodRescueBar" */;
+			buildPhases = (
+				6CB0BC683F500152AAC4B1EC /* Sources */,
+				7D8A9DE430DA58F9AA1E95D9 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FoodRescueBar;
+			packageProductDependencies = (
+				4594C4257CA9D874CC1F60BE /* CocoaMQTT */,
+			);
+			productName = FoodRescueBar;
+			productReference = 1E30C6F186544AB2BC4DF945 /* FoodRescueBar.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A82C96CA56DA9B4E8AF9F04F /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					997FE68EAB44426DB8429A66 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 84C3D84909BDC661691DAB95 /* Build configuration list for PBXProject "FoodRescueBar" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 38392872D01C13554F770559;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				0AF700773838383FEA213C12 /* XCRemoteSwiftPackageReference "CocoaMQTT" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 968AAEA6671F667D26D36E2D /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				997FE68EAB44426DB8429A66 /* FoodRescueBar */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		6CB0BC683F500152AAC4B1EC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8A323385D56B20A9811976FB /* AppState.swift in Sources */,
+				2D0C54E591279D58D1D3CE92 /* AuthService.swift in Sources */,
+				9604A2C75100AACA07D78578 /* Components.swift in Sources */,
+				D19F1B29292DA7BC47803B33 /* FoodRescueBarApp.swift in Sources */,
+				498376A07FAFC6CDC054336F /* HomeView.swift in Sources */,
+				09AC7B43F986DEE6E0DA1DDD /* KeychainStore.swift in Sources */,
+				AA3CC50A881097756836CA33 /* LaunchAtLogin.swift in Sources */,
+				CE7A854A80543C11B9615108 /* LocationView.swift in Sources */,
+				0CBACECE48764774369B0516 /* LoginView.swift in Sources */,
+				3F12CE0B032731CF8E315B40 /* MQTTMonitor.swift in Sources */,
+				465DA2DFEF5FE9757D46DD76 /* MenuBarRootView.swift in Sources */,
+				03258C7B66C5FED1683BD405 /* Models.swift in Sources */,
+				9CBE9ED5F6B8AA5FB60285E5 /* NotificationManager.swift in Sources */,
+				B30520271FC40AC3B2A9CCFC /* SettingsView.swift in Sources */,
+				2694D5125086C78D0CCE3CC7 /* Theme.swift in Sources */,
+				592E2F22A3982D5A26F4C1BC /* ZomatoAPI.swift in Sources */,
+				4D89B2462EFF6040158592B3 /* ZomatoHeaders.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		477B462BF9B43DF7C5A06472 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		69A4FC42B60B8D2159B97FEE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Resources/FoodRescueBar.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.foodrescuebar.app;
+				PRODUCT_NAME = FoodRescueBar;
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
+		E3013CFBC2A9ABEDD64C34B9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		F4AA0CBFE06711D7BDABB336 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Resources/FoodRescueBar.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.foodrescuebar.app;
+				PRODUCT_NAME = FoodRescueBar;
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		004783FC712847AD2AAC8DB0 /* Build configuration list for PBXNativeTarget "FoodRescueBar" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F4AA0CBFE06711D7BDABB336 /* Debug */,
+				69A4FC42B60B8D2159B97FEE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		84C3D84909BDC661691DAB95 /* Build configuration list for PBXProject "FoodRescueBar" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E3013CFBC2A9ABEDD64C34B9 /* Debug */,
+				477B462BF9B43DF7C5A06472 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		0AF700773838383FEA213C12 /* XCRemoteSwiftPackageReference "CocoaMQTT" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/emqx/CocoaMQTT";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.1.6;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4594C4257CA9D874CC1F60BE /* CocoaMQTT */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0AF700773838383FEA213C12 /* XCRemoteSwiftPackageReference "CocoaMQTT" */;
+			productName = CocoaMQTT;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = A82C96CA56DA9B4E8AF9F04F /* Project object */;
+}
