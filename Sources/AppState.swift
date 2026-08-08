@@ -37,6 +37,8 @@ final class AppState: ObservableObject {
     @AppStorage("playSound") var playSound = true
     /// When on, fetches restaurant/price via create-cart (may consume in-app flyer pitch).
     @AppStorage("fetchDealDetails") var fetchDealDetails = true
+    /// macOS: hold a power assertion so idle sleep is less likely while listening.
+    @AppStorage("keepAwakeWhileListening") var keepAwakeWhileListening = true
     @AppStorage("launchAtLogin") var launchAtLoginPref = false {
         didSet { LaunchAtLogin.isEnabled = launchAtLoginPref }
     }
@@ -64,6 +66,25 @@ final class AppState: ObservableObject {
 
     init() {
         restoreSession()
+        #if os(macOS)
+        KeepAwakeService.shared.onSystemDidWake = { [weak self] in
+            Task { @MainActor in
+                guard let self, self.isMonitoring else { return }
+                self.flash("Mac woke — reconnecting Food Rescue…")
+                if self.keepAwakeWhileListening {
+                    KeepAwakeService.shared.start()
+                }
+                await self.ensureMonitoringAlive()
+            }
+        }
+        KeepAwakeService.shared.onSystemWillSleep = { [weak self] in
+            Task { @MainActor in
+                guard let self, self.isMonitoring else { return }
+                // Status only — we cannot receive MQTT while the machine is asleep
+                self.lastConnectedDescription = "Mac sleeping — no alerts until wake"
+            }
+        }
+        #endif
     }
 
     // MARK: - Session
@@ -304,6 +325,12 @@ final class AppState: ObservableObject {
         monitorState = .connecting
         lastConnectedDescription = "Connecting \(selectedLocations.count) area\(selectedLocations.count == 1 ? "" : "s")…"
 
+        #if os(macOS)
+        if keepAwakeWhileListening {
+            KeepAwakeService.shared.start()
+        }
+        #endif
+
         // Tear down any prior sessions
         for m in monitors.values { m.disconnect() }
         monitors.removeAll()
@@ -327,7 +354,11 @@ final class AppState: ObservableObject {
 
         let live = locationStatuses.filter { $0.state.isLive }.count
         if live > 0 {
+            #if os(macOS)
+            flash("Listening on \(live)/\(selectedLocations.count) area\(selectedLocations.count == 1 ? "" : "s"). Keep lid open (or use power + external display) — sleep stops alerts.")
+            #else
             flash("Listening on \(live)/\(selectedLocations.count) address\(selectedLocations.count == 1 ? "" : "es")")
+            #endif
         } else {
             flash("Could not connect any Food Rescue channels", error: true)
         }
@@ -386,11 +417,25 @@ final class AppState: ObservableObject {
         monitorState = .idle
         lastConnectedDescription = "Stopped"
         connectedAt = nil
+        #if os(macOS)
+        KeepAwakeService.shared.stop()
+        #endif
         // Keep semantic dedupe so a quick restart doesn't re-show retained claimed spam
         for loc in selectedLocations {
             setStatus(addressId: loc.addressId, name: loc.name, state: .idle, detail: "Stopped")
         }
         recomputeAggregateState()
+    }
+
+    /// Apply keep-awake setting while already monitoring.
+    func applyKeepAwakeSetting() {
+        #if os(macOS)
+        if isMonitoring && keepAwakeWhileListening {
+            KeepAwakeService.shared.start()
+        } else {
+            KeepAwakeService.shared.stop()
+        }
+        #endif
     }
 
     /// Remove noisy claimed duplicates already in the feed (one-shot cleanup).

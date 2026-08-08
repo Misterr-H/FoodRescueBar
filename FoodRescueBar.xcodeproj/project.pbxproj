@@ -20,6 +20,7 @@
 		3C9A3E64811015E6173E21AC /* CocoaMQTT in Frameworks */ = {isa = PBXBuildFile; productRef = 84FCC84081B86061AF7C8069 /* CocoaMQTT */; };
 		3F12CE0B032731CF8E315B40 /* MQTTMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2DBF4C8E01FB5931D750146 /* MQTTMonitor.swift */; };
 		465DA2DFEF5FE9757D46DD76 /* MenuBarRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44902894158FDB15BDAE0D12 /* MenuBarRootView.swift */; };
+		49782A1A197C029DBF32250F /* KeepAwakeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A394AA5869FD8B5271DA84A2 /* KeepAwakeService.swift */; };
 		498376A07FAFC6CDC054336F /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12FF9DF92897B740D07737C9 /* HomeView.swift */; };
 		4D89B2462EFF6040158592B3 /* ZomatoHeaders.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAA869BB1B3B2B5759E4A229 /* ZomatoHeaders.swift */; };
 		591F41CA91FBF3DA0A5376A1 /* MQTTMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2DBF4C8E01FB5931D750146 /* MQTTMonitor.swift */; };
@@ -27,6 +28,7 @@
 		610B1BFDCF744BA778FC34D3 /* MenuBarRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44902894158FDB15BDAE0D12 /* MenuBarRootView.swift */; };
 		617CFD59D30C72565FEC8DFD /* ZomatoAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 300983FF9845D1FD9E326503 /* ZomatoAPI.swift */; };
 		636843BDA44B91A9AEC5427F /* FoodRescueBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781F24CA7F3D7D70333AA32 /* FoodRescueBarApp.swift */; };
+		648755503A649DBE8A7880AC /* KeepAwakeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A394AA5869FD8B5271DA84A2 /* KeepAwakeService.swift */; };
 		69B2A466E449FDE752C5D6C0 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6964574318DDDB11D6D837FF /* AppState.swift */; };
 		80CD373EF7C74EF35F429440 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12FF9DF92897B740D07737C9 /* HomeView.swift */; };
 		8A323385D56B20A9811976FB /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6964574318DDDB11D6D837FF /* AppState.swift */; };
@@ -64,6 +66,7 @@
 		801D5C6EEF688358DB4F125B /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		8C595918AF7410CDF7688A42 /* LocationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationView.swift; sourceTree = "<group>"; };
 		9C1C23664775EB32C275658A /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		A394AA5869FD8B5271DA84A2 /* KeepAwakeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeepAwakeService.swift; sourceTree = "<group>"; };
 		B260CD9A9B733C9920A51751 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		B781F24CA7F3D7D70333AA32 /* FoodRescueBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodRescueBarApp.swift; sourceTree = "<group>"; };
 		BEADE560DBAAF9981CD9BBD6 /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
@@ -99,6 +102,7 @@
 			isa = PBXGroup;
 			children = (
 				9C1C23664775EB32C275658A /* AuthService.swift */,
+				A394AA5869FD8B5271DA84A2 /* KeepAwakeService.swift */,
 				7E1604380A32D09EB66A44E9 /* KeychainStore.swift */,
 				BEADE560DBAAF9981CD9BBD6 /* LaunchAtLogin.swift */,
 				D2DBF4C8E01FB5931D750146 /* MQTTMonitor.swift */,
@@ -283,6 +287,7 @@
 				80CD373EF7C74EF35F429440 /* HomeView.swift in Sources */,
 				BA3D61D8398178B9731AE04E /* IOSBackgroundKeeper.swift in Sources */,
 				8A6AB84204020C627E734FB5 /* IOSRootView.swift in Sources */,
+				49782A1A197C029DBF32250F /* KeepAwakeService.swift in Sources */,
 				1AD31E381BAC68E64B685D53 /* KeychainStore.swift in Sources */,
 				DA8E84F26F831A6D2B92D94F /* LaunchAtLogin.swift in Sources */,
 				06836D88C34BED2852D56ED6 /* LocationView.swift in Sources */,
@@ -308,6 +313,7 @@
 				9604A2C75100AACA07D78578 /* Components.swift in Sources */,
 				636843BDA44B91A9AEC5427F /* FoodRescueBarApp.swift in Sources */,
 				498376A07FAFC6CDC054336F /* HomeView.swift in Sources */,
+				648755503A649DBE8A7880AC /* KeepAwakeService.swift in Sources */,
 				09AC7B43F986DEE6E0DA1DDD /* KeychainStore.swift in Sources */,
 				AA3CC50A881097756836CA33 /* LaunchAtLogin.swift in Sources */,
 				CE7A854A80543C11B9615108 /* LocationView.swift in Sources */,
@@ -381,7 +387,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 959B556ARQ;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -398,7 +404,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.3.0;
+				MARKETING_VERSION = 1.3.1;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -479,7 +485,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 959B556ARQ;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -502,7 +508,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.3.0;
+				MARKETING_VERSION = 1.3.1;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

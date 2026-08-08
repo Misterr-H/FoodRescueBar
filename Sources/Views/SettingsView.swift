@@ -38,6 +38,20 @@ struct SettingsView: View {
                 #if os(macOS)
                 Divider().opacity(0.4)
 
+                Toggle(isOn: $state.keepAwakeWhileListening) {
+                    labelRow(
+                        title: "Keep Mac awake while listening",
+                        subtitle: "Blocks idle sleep so MQTT can stay up. Closing the lid often still sleeps the Mac (especially on battery).",
+                        systemImage: "cup.and.saucer.fill"
+                    )
+                }
+                .toggleStyle(.switch)
+                .onChange(of: state.keepAwakeWhileListening) { _, _ in
+                    state.applyKeepAwakeSetting()
+                }
+
+                Divider().opacity(0.4)
+
                 Toggle(isOn: $state.launchAtLoginPref) {
                     labelRow(
                         title: "Launch at login",
@@ -77,7 +91,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 #else
-                Text("Each cancel is tagged with your subscribed area (Home/Work/…). Optional deal fetch adds restaurant & price. Open official Zomato to claim — we never auto-checkout.")
+                Text("Mac must stay awake for MQTT. Idle sleep is blocked while listening if enabled; lid-close often still sleeps. Prefer lid open, clamshell (power + external display), or a desktop Mac. Open Zomato to claim — we never auto-checkout.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

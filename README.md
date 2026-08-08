@@ -97,7 +97,28 @@ xcodebuild -scheme FoodRescueBar-iOS -configuration Debug \
 
 Stop listening before editing the address set.
 
-Keep the Mac awake and online. Sleep interrupts MQTT until the reliability loop reconnects.
+### Mac sleep / closed lid
+
+MQTT only works while the Mac is **awake and online**.
+
+| Situation | Alerts? |
+|-----------|---------|
+| Lid open, Mac awake | Yes |
+| Display sleeps but system stays up | Usually yes (with **Keep Mac awake while listening**) |
+| **Lid closed** (typical MacBook) | **No** — machine usually sleeps, network dies |
+| After wake | App reconnects automatically |
+
+**Workarounds for closed-lid listening:**
+
+1. **Clamshell mode:** power adapter + external display/keyboard (Mac stays awake with lid closed)  
+2. Leave lid slightly open  
+3. Desktop/Mac mini left on  
+4. Settings → enable **Keep Mac awake while listening** (helps idle sleep; not a guarantee for lid-close on battery)
+
+```bash
+# Optional system-level (AC power): prevent idle sleep while testing
+caffeinate -dims &
+```
 
 ## Architecture
 
