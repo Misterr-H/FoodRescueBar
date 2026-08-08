@@ -562,12 +562,25 @@ final class AppState: ObservableObject {
             // Ignore non-rescue noise
             guard parsed.eventType == .orderCancelled || parsed.eventType == .orderClaimed else { return }
 
-            // Stale retained messages (especially claimed floods on reconnect)
             let age = Date().timeIntervalSince(parsed.timestamp)
+
+            // Cancels without a server timestamp are almost always retained junk
+            if parsed.eventType == .orderCancelled, !parsed.hasServerTimestamp {
+                return
+            }
             if parsed.eventType == .orderCancelled, age > ZomatoConfig.staleMessageSeconds {
                 return
             }
             if parsed.eventType == .orderClaimed, age > ZomatoConfig.staleClaimedSeconds {
+                return
+            }
+
+            // Drop retained dump right after subscribe (common false-positive source)
+            if parsed.eventType == .orderCancelled,
+               let mon = monitors[addressId],
+               let subAt = mon.subscribedAt,
+               Date().timeIntervalSince(subAt) < ZomatoConfig.postConnectGraceSeconds,
+               age > ZomatoConfig.postConnectMaxAgeSeconds {
                 return
             }
 
@@ -585,13 +598,12 @@ final class AppState: ObservableObject {
                }) {
                 events[idx].type = .orderClaimed
                 events[idx].timestamp = max(events[idx].timestamp, parsed.timestamp)
-                // Move updated row to top
+                events[idx].isVerifiedDeal = false
                 let updated = events.remove(at: idx)
                 events.insert(updated, at: 0)
                 return
             }
 
-            // Without order id: collapse rapid claimed spam for same area into one row
             if parsed.eventType == .orderClaimed, parsed.orderId == nil,
                let idx = events.firstIndex(where: {
                    $0.addressId == addressId
@@ -601,6 +613,16 @@ final class AppState: ObservableObject {
                }) {
                 events[idx].timestamp = max(events[idx].timestamp, parsed.timestamp)
                 return
+            }
+
+            // Claimed-only noise: only keep if we already tracked a cancel for this order
+            if parsed.eventType == .orderClaimed {
+                if let oid = parsed.orderId {
+                    let known = events.contains { $0.orderId == oid && $0.addressId == addressId }
+                    if !known { return } // pure claim without prior cancel → skip
+                } else {
+                    return
+                }
             }
 
             let location = selectedLocations.first(where: { $0.addressId == addressId })
@@ -622,16 +644,18 @@ final class AppState: ObservableObject {
                 catalogTotalCost: nil,
                 viewersCount: nil,
                 cartExpiry: nil,
-                isEnriching: parsed.eventType == .orderCancelled && fetchDealDetails,
-                enrichmentFailed: false
+                isEnriching: parsed.eventType == .orderCancelled,
+                enrichmentFailed: false,
+                isVerifiedDeal: false,
+                isLikelyNoise: false
             )
             events.insert(item, at: 0)
             if events.count > 50 { events = Array(events.prefix(50)) }
 
             if parsed.eventType == .orderCancelled {
-                // Alarm immediately — don't wait for create-cart enrichment
+                // Verify via create-cart before alarming (kills false positives)
                 Task {
-                    await fireCancelAlarm(eventId: eventId, addressId: addressId)
+                    await verifyAndMaybeAlarm(eventId: eventId, addressId: addressId)
                 }
             }
 
@@ -640,71 +664,87 @@ final class AppState: ObservableObject {
         }
     }
 
-    /// Sticky alarm + optional deal enrichment (enrichment updates the alarm UI).
-    private func fireCancelAlarm(eventId: String, addressId: Int) async {
-        let now = Date()
-        let elapsed = now.timeIntervalSince(lastNotifiedAt)
-        guard elapsed >= cooldownSeconds else { return }
+    /// Only alarm when Zomato confirms an active rescue cart for this area.
+    private func verifyAndMaybeAlarm(eventId: String, addressId: Int) async {
+        guard let token = tokens?.accessToken,
+              let location = selectedLocations.first(where: { $0.addressId == addressId }) else {
+            markNoise(eventId: eventId, reason: "No session/location")
+            return
+        }
 
-        lastNotifiedAt = now
-        lastAlertAt = now
-        alertCountToday += 1
-
-        await NotificationManager.shared.ensureAuthorized()
-
-        guard let event = events.first(where: { $0.id == eventId }) else { return }
-        // Raise sticky alarm right away
-        AlarmCenter.shared.raiseAlarm(for: event, playSound: playSound)
-
-        // Enrich in background and refresh alarm panel
-        if fetchDealDetails,
-           let token = tokens?.accessToken,
-           let location = selectedLocations.first(where: { $0.addressId == addressId }) {
-            let cityId = cityIdByAddress[addressId] ?? 0
-            do {
-                let deal = try await api.fetchFoodRescueDeal(
-                    location: location,
-                    cityId: cityId,
-                    accessToken: token
-                )
-                var restaurantName: String?
-                var lat: Double?
-                var lng: Double?
-                if let meta = try? await api.fetchRestaurantMeta(resId: deal.resId, accessToken: token) {
-                    restaurantName = meta.name
-                    lat = meta.lat
-                    lng = meta.lng
-                }
-                updateEvent(id: eventId) { e in
-                    e.restaurantId = deal.resId
-                    e.restaurantName = restaurantName
-                    e.restaurantLat = lat
-                    e.restaurantLng = lng
-                    e.cartFinalCost = deal.cartFinalCost
-                    e.catalogTotalCost = deal.catalogTotalCost
-                    e.viewersCount = deal.viewersCount
-                    if let exp = deal.cartExpiryTimestamp {
-                        e.cartExpiry = Date(timeIntervalSince1970: exp > 10_000_000_000 ? exp / 1000 : exp)
-                    }
-                    if e.orderId == nil {
-                        e.orderId = deal.parentOrderId
-                    }
-                    e.isEnriching = false
-                    e.enrichmentFailed = false
-                }
-            } catch {
-                updateEvent(id: eventId) { e in
-                    e.isEnriching = false
-                    e.enrichmentFailed = true
-                }
+        let cityId = cityIdByAddress[addressId] ?? 0
+        do {
+            let deal = try await api.fetchFoodRescueDeal(
+                location: location,
+                cityId: cityId,
+                accessToken: token
+            )
+            // Require a real restaurant id; price 0 alone is OK if res exists
+            guard !deal.resId.isEmpty else {
+                markNoise(eventId: eventId, reason: "Empty res id")
+                return
             }
-            if let updated = events.first(where: { $0.id == eventId }) {
-                AlarmCenter.shared.updateAlarm(with: updated)
+
+            var restaurantName: String?
+            var lat: Double?
+            var lng: Double?
+            if let meta = try? await api.fetchRestaurantMeta(resId: deal.resId, accessToken: token) {
+                restaurantName = meta.name
+                lat = meta.lat
+                lng = meta.lng
             }
-        } else {
+
             updateEvent(id: eventId) { e in
+                e.restaurantId = deal.resId
+                e.restaurantName = restaurantName
+                e.restaurantLat = lat
+                e.restaurantLng = lng
+                e.cartFinalCost = deal.cartFinalCost
+                e.catalogTotalCost = deal.catalogTotalCost
+                e.viewersCount = deal.viewersCount
+                if let exp = deal.cartExpiryTimestamp {
+                    e.cartExpiry = Date(timeIntervalSince1970: exp > 10_000_000_000 ? exp / 1000 : exp)
+                }
+                if e.orderId == nil {
+                    e.orderId = deal.parentOrderId
+                }
                 e.isEnriching = false
+                e.enrichmentFailed = false
+                e.isVerifiedDeal = true
+                e.isLikelyNoise = false
             }
+
+            // Cooldown for alarms only
+            let now = Date()
+            guard now.timeIntervalSince(lastNotifiedAt) >= cooldownSeconds else { return }
+            lastNotifiedAt = now
+            lastAlertAt = now
+            alertCountToday += 1
+
+            await NotificationManager.shared.ensureAuthorized()
+            if let event = events.first(where: { $0.id == eventId }), event.isVerifiedDeal {
+                AlarmCenter.shared.raiseAlarm(for: event, playSound: playSound)
+            }
+        } catch {
+            // No active cart → false positive / already claimed / pitch burned
+            markNoise(eventId: eventId, reason: error.localizedDescription)
+        }
+    }
+
+    private func markNoise(eventId: String, reason: String) {
+        updateEvent(id: eventId) { e in
+            e.isEnriching = false
+            e.enrichmentFailed = true
+            e.isVerifiedDeal = false
+            e.isLikelyNoise = true
+        }
+        // Drop noise from the top of the feed after a moment isn't needed —
+        // user sees "not claimable". Optionally remove entirely:
+        if let idx = events.firstIndex(where: { $0.id == eventId }) {
+            // Keep one line for debugging but don't alarm
+            _ = reason
+            // Remove pure noise cancels so Home doesn't look like a hit
+            events.remove(at: idx)
         }
     }
 

@@ -5,6 +5,8 @@ enum MQTTPayloadParser {
         var messageId: String
         var eventType: FoodRescueEventType
         var timestamp: Date
+        /// False when the payload had no server timestamp (treat as untrusted/stale).
+        var hasServerTimestamp: Bool
         var orderId: String?
         var raw: String
     }
@@ -20,11 +22,17 @@ enum MQTTPayloadParser {
         let eventType = FoodRescueEventType(raw: dataObj?["event_type"] as? String)
 
         var ts = Date()
+        var hasServerTimestamp = false
         if let t = json["timestamp"] as? Double {
             ts = Date(timeIntervalSince1970: t > 10_000_000_000 ? t / 1000 : t)
+            hasServerTimestamp = true
         } else if let t = json["timestamp"] as? Int {
             let d = Double(t)
             ts = Date(timeIntervalSince1970: d > 10_000_000_000 ? d / 1000 : d)
+            hasServerTimestamp = true
+        } else if let t = json["timestamp"] as? String, let d = Double(t) {
+            ts = Date(timeIntervalSince1970: d > 10_000_000_000 ? d / 1000 : d)
+            hasServerTimestamp = true
         }
 
         let orderId = extractOrderId(from: dataObj) ?? extractOrderId(from: json)
@@ -33,6 +41,7 @@ enum MQTTPayloadParser {
             messageId: msgId,
             eventType: eventType,
             timestamp: ts,
+            hasServerTimestamp: hasServerTimestamp,
             orderId: orderId,
             raw: raw
         )

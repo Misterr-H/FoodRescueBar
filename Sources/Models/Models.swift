@@ -143,11 +143,24 @@ struct RescueEvent: Identifiable, Equatable {
     var cartExpiry: Date?
     var isEnriching: Bool
     var enrichmentFailed: Bool
+    /// create-cart confirmed an active Food Rescue deal for this cancel.
+    var isVerifiedDeal: Bool
+    /// Retained/stale MQTT noise — not a live claim opportunity.
+    var isLikelyNoise: Bool
 
-    var isClaimable: Bool { type == .orderCancelled }
+    var isClaimable: Bool { type == .orderCancelled && isVerifiedDeal && !isLikelyNoise }
 
     var titleText: String {
         if type == .orderCancelled {
+            if isLikelyNoise || enrichmentFailed {
+                return "Past cancel signal (not claimable)"
+            }
+            if isEnriching {
+                return "Checking deal…"
+            }
+            if isVerifiedDeal {
+                return restaurantName.map { "\($0) — claimable" } ?? "Order cancelled — claimable"
+            }
             return restaurantName.map { "\($0) — claimable" } ?? "Order cancelled — claimable"
         }
         return restaurantName.map { "\($0) — claimed" } ?? "Order claimed"

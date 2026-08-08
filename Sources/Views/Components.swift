@@ -157,37 +157,42 @@ struct EventRow: View {
     let event: RescueEvent
     var expanded: Bool = false
 
+    private var accent: Color {
+        if event.isLikelyNoise || event.enrichmentFailed { return .secondary }
+        if event.isVerifiedDeal { return FRTheme.brand }
+        if event.type == .orderClaimed { return FRTheme.success }
+        return FRTheme.warning
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .top, spacing: 10) {
-                Image(systemName: event.type == .orderCancelled ? "bolt.fill" : "checkmark.seal.fill")
+                Image(systemName: iconName)
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(event.type == .orderCancelled ? FRTheme.brand : FRTheme.success)
+                    .foregroundStyle(accent)
                     .frame(width: 22, height: 22)
-                    .background(
-                        Circle().fill((event.type == .orderCancelled ? FRTheme.brand : FRTheme.success).opacity(0.12))
-                    )
+                    .background(Circle().fill(accent.opacity(0.12)))
 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
                         Text(event.titleText)
                             .font(.system(size: 12, weight: .semibold))
-                            .lineLimit(expanded ? 3 : 1)
+                            .foregroundStyle(event.isLikelyNoise ? .secondary : .primary)
+                            .lineLimit(3)
                         if event.isEnriching {
                             ProgressView().controlSize(.mini)
                         }
                     }
 
-                    // Subscribed area — always visible for multi-location
                     HStack(alignment: .top, spacing: 4) {
                         Image(systemName: "mappin")
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(FRTheme.brand)
+                            .foregroundStyle(accent)
                             .padding(.top, 1)
                         Text(event.subscribedAreaText)
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(.secondary)
-                            .lineLimit(expanded ? 3 : 1)
+                            .lineLimit(3)
                     }
 
                     HStack(spacing: 6) {
@@ -208,51 +213,50 @@ struct EventRow: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    if expanded {
+                    if expanded, event.isVerifiedDeal {
                         expandedMeta
                     }
                 }
                 Spacer(minLength: 0)
-                Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                    .padding(.top, 4)
             }
         }
         .padding(.vertical, 4)
-        .contentShape(Rectangle())
+        // Not a Button — non-interactive to avoid SwiftUI gesture crashes
+        .allowsHitTesting(false)
+    }
+
+    private var iconName: String {
+        if event.isLikelyNoise || event.enrichmentFailed { return "moon.zzz.fill" }
+        if event.isVerifiedDeal { return "bolt.fill" }
+        if event.type == .orderClaimed { return "checkmark.seal.fill" }
+        if event.isEnriching { return "hourglass" }
+        return "bolt.fill"
     }
 
     @ViewBuilder
     private var expandedMeta: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let orderId = event.orderId {
-                metaLine(icon: "number", text: "Order \(orderId)")
+                Text("Order \(orderId)")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
             }
             if let resId = event.restaurantId {
-                metaLine(icon: "storefront", text: "Res ID \(resId)")
+                Text("Restaurant id \(resId)")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
             }
             if let lat = event.restaurantLat, let lng = event.restaurantLng {
-                metaLine(icon: "map", text: String(format: "Restaurant · %.4f, %.4f", lat, lng))
+                Text(String(format: "Map · %.4f, %.4f", lat, lng))
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
             }
             if let expiry = event.cartExpiry {
-                metaLine(icon: "timer", text: "Expires \(expiry.formatted(date: .omitted, time: .shortened))")
-            }
-            if event.enrichmentFailed {
-                metaLine(icon: "exclamationmark.triangle", text: "Couldn’t load deal details (pitch may already be used)")
-            }
-            if !event.isEnriching && event.restaurantName == nil && event.type == .orderCancelled && !event.enrichmentFailed {
-                metaLine(icon: "info.circle", text: "Enable “Fetch deal details” in Settings for restaurant & price")
+                Text("Expires \(expiry.formatted(date: .omitted, time: .shortened))")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(.top, 2)
-    }
-
-    private func metaLine(icon: String, text: String) -> some View {
-        Label(text, systemImage: icon)
-            .font(.system(size: 10))
-            .foregroundStyle(.secondary)
-            .labelStyle(.titleAndIcon)
-            .lineLimit(2)
     }
 }

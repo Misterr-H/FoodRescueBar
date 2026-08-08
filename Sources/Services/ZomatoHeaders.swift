@@ -12,13 +12,19 @@ enum ZomatoConfig {
     static let redirectURI = "https://accounts.zomato.com/zoauth/callback"
 
     /// Stale MQTT cancel messages older than this are ignored (seconds).
-    static let staleMessageSeconds: TimeInterval = 120
+    /// Keep tight — broker often re-delivers retained cancels on reconnect.
+    static let staleMessageSeconds: TimeInterval = 45
     /// Stale claimed events (retained broker noise on reconnect).
-    static let staleClaimedSeconds: TimeInterval = 300
+    static let staleClaimedSeconds: TimeInterval = 120
+    /// After MQTT connect, ignore cancels older than this (retained topic dump).
+    static let postConnectGraceSeconds: TimeInterval = 2.5
+    static let postConnectMaxAgeSeconds: TimeInterval = 20
     /// Bucket size for deduping events without an order id.
     static let semanticDedupeWindowSeconds: TimeInterval = 120
     /// Force MQTT reconnect interval.
     static let forceReconnectSeconds: TimeInterval = 20 * 60
+    /// Only raise alarm if create-cart confirms an active deal.
+    static let requireVerifiedDealForAlarm = true
 }
 
 enum ZomatoHeaders {

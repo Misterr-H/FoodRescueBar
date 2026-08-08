@@ -194,7 +194,9 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 viewersCount: 12,
                 cartExpiry: Date().addingTimeInterval(180),
                 isEnriching: false,
-                enrichmentFailed: false
+                enrichmentFailed: false,
+                isVerifiedDeal: true,
+                isLikelyNoise: false
             )
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 AlarmCenter.shared.raiseAlarm(for: sample, playSound: true)

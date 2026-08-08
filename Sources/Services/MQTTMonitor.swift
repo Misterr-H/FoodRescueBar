@@ -21,6 +21,8 @@ final class MQTTMonitor: NSObject, CocoaMQTTDelegate {
     private let processedLock = NSLock()
     private var processedIDs = Set<String>()
     private var lastConnectedAt: Date?
+    /// Used to drop retained MQTT dumps right after subscribe.
+    private(set) var subscribedAt: Date?
 
     init(addressId: Int, locationName: String) {
         self.addressId = addressId
@@ -72,6 +74,7 @@ final class MQTTMonitor: NSObject, CocoaMQTTDelegate {
     func mqtt(_ mqtt: CocoaMQTT, didConnectAck ack: CocoaMQTTConnAck) {
         if ack == .accept {
             lastConnectedAt = Date()
+            subscribedAt = nil
             onEvent?(.connected)
             if let channel {
                 let qos: CocoaMQTTQoS
@@ -81,6 +84,7 @@ final class MQTTMonitor: NSObject, CocoaMQTTDelegate {
                 default: qos = .qos1
                 }
                 mqtt.subscribe(channel.channelName, qos: qos)
+                subscribedAt = Date()
                 onEvent?(.log("[\(locationName)] Subscribed to \(channel.channelName)"))
             }
         } else {

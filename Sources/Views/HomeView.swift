@@ -2,7 +2,6 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject private var state: AppState
-    @State private var expandedEventId: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -230,9 +229,14 @@ struct HomeView: View {
                     Button("Clean up") {
                         state.pruneDuplicateEvents()
                     }
+                    #if os(macOS)
+                    .buttonStyle(.bordered)
+                    .controlSize(.mini)
+                    #else
                     .font(.system(size: 10, weight: .semibold))
                     .buttonStyle(.plain)
                     .foregroundStyle(FRTheme.brand)
+                    #endif
                 }
             }
 
@@ -240,17 +244,11 @@ struct HomeView: View {
                 EmptyEventsView()
                     .frCard(padding: 10)
             } else {
+                // Non-interactive rows only — SwiftUI Buttons inside NSHostingController
+                // crash on this macOS (MainActor.assumeIsolated). Do not wrap in Button.
                 VStack(spacing: 8) {
                     ForEach(state.events.prefix(6)) { event in
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                expandedEventId = expandedEventId == event.id ? nil : event.id
-                            }
-                        } label: {
-                            EventRow(event: event, expanded: expandedEventId == event.id)
-                        }
-                        .buttonStyle(.plain)
-
+                        EventRow(event: event, expanded: event.isVerifiedDeal || event.type == .orderCancelled)
                         if event.id != state.events.prefix(6).last?.id {
                             Divider().opacity(0.35)
                         }
@@ -270,14 +268,19 @@ struct HomeView: View {
 
     private var footer: some View {
         HStack(spacing: 8) {
-            Button {
+            // Plain text + onTap causes the same crash; use menu bar Quit / Settings instead.
+            // Keep a non-button sign-out via bordered style which is more stable.
+            Button("Sign out") {
                 Task { await state.logout() }
-            } label: {
-                Text("Sign out")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
             }
+            #if os(macOS)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            #else
             .buttonStyle(.plain)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(.secondary)
+            #endif
 
             Spacer(minLength: 0)
 

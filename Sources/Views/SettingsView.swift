@@ -125,7 +125,9 @@ struct SettingsView: View {
                         viewersCount: 12,
                         cartExpiry: Date().addingTimeInterval(180),
                         isEnriching: false,
-                        enrichmentFailed: false
+                        enrichmentFailed: false,
+                        isVerifiedDeal: true,
+                        isLikelyNoise: false
                     )
                     AlarmCenter.shared.raiseAlarm(for: sample, playSound: state.playSound)
                 }
