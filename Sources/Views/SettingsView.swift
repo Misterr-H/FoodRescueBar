@@ -28,8 +28,8 @@ struct SettingsView: View {
 
                 Toggle(isOn: $state.fetchDealDetails) {
                     labelRow(
-                        title: "Fetch deal details",
-                        subtitle: "Restaurant, price & viewers via create-cart. May consume the in-app flyer pitch for that deal.",
+                        title: "Auto-fetch deal details",
+                        subtitle: "OFF (recommended): alarm only — open Zomato for the official flyer. ON: call create-cart for restaurant/price (usually hides the in-app popup).",
                         systemImage: "info.circle.fill"
                     )
                 }
@@ -91,7 +91,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 #else
-                Text("Mac must stay awake for MQTT. Idle sleep is blocked while listening if enabled; lid-close often still sleeps. Prefer lid open, clamshell (power + external display), or a desktop Mac. Open Zomato to claim — we never auto-checkout.")
+                Text("Alarms use MQTT only by default so Zomato’s flyer still appears on your phone. Keep Mac awake while listening. Open Zomato immediately when alerted — we never auto-checkout.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

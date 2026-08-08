@@ -152,16 +152,17 @@ struct RescueEvent: Identifiable, Equatable {
 
     var titleText: String {
         if type == .orderCancelled {
-            if isLikelyNoise || enrichmentFailed {
+            if isLikelyNoise {
                 return "Past cancel signal (not claimable)"
             }
             if isEnriching {
-                return "Checking deal…"
+                return "Loading restaurant details…"
             }
-            if isVerifiedDeal {
-                return restaurantName.map { "\($0) — claimable" } ?? "Order cancelled — claimable"
+            if let restaurantName {
+                return "\(restaurantName) — open Zomato now"
             }
-            return restaurantName.map { "\($0) — claimable" } ?? "Order cancelled — claimable"
+            // MQTT-first signal: do not imply we already opened the pitch
+            return "Food Rescue nearby — open Zomato now"
         }
         return restaurantName.map { "\($0) — claimed" } ?? "Order claimed"
     }

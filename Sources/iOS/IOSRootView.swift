@@ -56,7 +56,8 @@ struct IOSRootView: View {
             AlarmPanelView(
                 event: item.event,
                 onAcknowledge: { alarm.acknowledge() },
-                onOpenZomato: { alarm.acknowledgeAndOpenZomato() }
+                onOpenZomato: { alarm.acknowledgeAndOpenZomato() },
+                onLoadDetails: { alarm.requestDetails() }
             )
             .interactiveDismissDisabled(true)
         }

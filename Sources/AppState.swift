@@ -35,8 +35,10 @@ final class AppState: ObservableObject {
     // Settings
     @AppStorage("cooldownSeconds") var cooldownSeconds: Double = 180
     @AppStorage("playSound") var playSound = true
-    /// When on, fetches restaurant/price via create-cart (may consume in-app flyer pitch).
-    @AppStorage("fetchDealDetails") var fetchDealDetails = true
+    /// When on, auto-fetch restaurant/price via create-cart on cancel (consumes in-app flyer pitch).
+    /// Default OFF so the official Zomato app can still show the Food Rescue popup.
+    /// Key v2 resets prior installs that had auto-fetch enabled by default.
+    @AppStorage("fetchDealDetailsV2") var fetchDealDetails = false
     /// macOS: hold a power assertion so idle sleep is less likely while listening.
     @AppStorage("keepAwakeWhileListening") var keepAwakeWhileListening = true
     @AppStorage("launchAtLogin") var launchAtLoginPref = false {
@@ -627,6 +629,8 @@ final class AppState: ObservableObject {
 
             let location = selectedLocations.first(where: { $0.addressId == addressId })
             let eventId = "\(addressId)-\(parsed.messageId)"
+            // MQTT-first: treat a fresh cancel as actionable without create-cart,
+            // so the official Zomato app can still show the flyer.
             let item = RescueEvent(
                 id: eventId,
                 type: parsed.eventType,
@@ -644,18 +648,17 @@ final class AppState: ObservableObject {
                 catalogTotalCost: nil,
                 viewersCount: nil,
                 cartExpiry: nil,
-                isEnriching: parsed.eventType == .orderCancelled,
+                isEnriching: false,
                 enrichmentFailed: false,
-                isVerifiedDeal: false,
+                isVerifiedDeal: parsed.eventType == .orderCancelled,
                 isLikelyNoise: false
             )
             events.insert(item, at: 0)
             if events.count > 50 { events = Array(events.prefix(50)) }
 
             if parsed.eventType == .orderCancelled {
-                // Verify via create-cart before alarming (kills false positives)
                 Task {
-                    await verifyAndMaybeAlarm(eventId: eventId, addressId: addressId)
+                    await alarmOnFreshCancel(eventId: eventId, addressId: addressId)
                 }
             }
 
@@ -664,12 +667,50 @@ final class AppState: ObservableObject {
         }
     }
 
-    /// Only alarm when Zomato confirms an active rescue cart for this area.
-    private func verifyAndMaybeAlarm(eventId: String, addressId: Int) async {
+    /// Alarm immediately on a filtered MQTT cancel — does NOT call create-cart by default.
+    private func alarmOnFreshCancel(eventId: String, addressId: Int) async {
+        let now = Date()
+        guard now.timeIntervalSince(lastNotifiedAt) >= cooldownSeconds else { return }
+        lastNotifiedAt = now
+        lastAlertAt = now
+        alertCountToday += 1
+
+        await NotificationManager.shared.ensureAuthorized()
+        guard let event = events.first(where: { $0.id == eventId }) else { return }
+
+        AlarmCenter.shared.raiseAlarm(
+            for: event,
+            playSound: playSound,
+            onRequestDetails: { [weak self] in
+                Task { @MainActor in
+                    await self?.enrichEventWithCreateCart(eventId: eventId, addressId: addressId)
+                }
+            }
+        )
+
+        // Optional auto-enrich only if user explicitly enabled it (burns flyer pitch)
+        if fetchDealDetails {
+            await enrichEventWithCreateCart(eventId: eventId, addressId: addressId)
+        }
+    }
+
+    /// Optional create-cart enrichment. Warns via UI — this can hide the Zomato flyer.
+    func enrichEventWithCreateCart(eventId: String, addressId: Int) async {
         guard let token = tokens?.accessToken,
               let location = selectedLocations.first(where: { $0.addressId == addressId }) else {
-            markNoise(eventId: eventId, reason: "No session/location")
+            updateEvent(id: eventId) { e in
+                e.isEnriching = false
+                e.enrichmentFailed = true
+            }
             return
+        }
+
+        updateEvent(id: eventId) { e in
+            e.isEnriching = true
+            e.enrichmentFailed = false
+        }
+        if let e = events.first(where: { $0.id == eventId }) {
+            AlarmCenter.shared.updateAlarm(with: e)
         }
 
         let cityId = cityIdByAddress[addressId] ?? 0
@@ -679,9 +720,14 @@ final class AppState: ObservableObject {
                 cityId: cityId,
                 accessToken: token
             )
-            // Require a real restaurant id; price 0 alone is OK if res exists
             guard !deal.resId.isEmpty else {
-                markNoise(eventId: eventId, reason: "Empty res id")
+                updateEvent(id: eventId) { e in
+                    e.isEnriching = false
+                    e.enrichmentFailed = true
+                }
+                if let e = events.first(where: { $0.id == eventId }) {
+                    AlarmCenter.shared.updateAlarm(with: e)
+                }
                 return
             }
 
@@ -713,38 +759,19 @@ final class AppState: ObservableObject {
                 e.isVerifiedDeal = true
                 e.isLikelyNoise = false
             }
-
-            // Cooldown for alarms only
-            let now = Date()
-            guard now.timeIntervalSince(lastNotifiedAt) >= cooldownSeconds else { return }
-            lastNotifiedAt = now
-            lastAlertAt = now
-            alertCountToday += 1
-
-            await NotificationManager.shared.ensureAuthorized()
-            if let event = events.first(where: { $0.id == eventId }), event.isVerifiedDeal {
-                AlarmCenter.shared.raiseAlarm(for: event, playSound: playSound)
+            if let e = events.first(where: { $0.id == eventId }) {
+                AlarmCenter.shared.updateAlarm(with: e)
             }
+            flash("Details loaded — flyer pitch may be used for this deal")
         } catch {
-            // No active cart → false positive / already claimed / pitch burned
-            markNoise(eventId: eventId, reason: error.localizedDescription)
-        }
-    }
-
-    private func markNoise(eventId: String, reason: String) {
-        updateEvent(id: eventId) { e in
-            e.isEnriching = false
-            e.enrichmentFailed = true
-            e.isVerifiedDeal = false
-            e.isLikelyNoise = true
-        }
-        // Drop noise from the top of the feed after a moment isn't needed —
-        // user sees "not claimable". Optionally remove entirely:
-        if let idx = events.firstIndex(where: { $0.id == eventId }) {
-            // Keep one line for debugging but don't alarm
-            _ = reason
-            // Remove pure noise cancels so Home doesn't look like a hit
-            events.remove(at: idx)
+            updateEvent(id: eventId) { e in
+                e.isEnriching = false
+                e.enrichmentFailed = true
+            }
+            if let e = events.first(where: { $0.id == eventId }) {
+                AlarmCenter.shared.updateAlarm(with: e)
+            }
+            flash("No active cart (already claimed, expired, or pitch used)", error: true)
         }
     }
 

@@ -16,6 +16,8 @@ final class AlarmCenter: ObservableObject {
 
     @Published private(set) var activeAlarm: RescueEvent?
     @Published private(set) var isAlarming = false
+    /// Optional: load restaurant/price via create-cart (may burn Zomato flyer).
+    private var onRequestDetails: (() -> Void)?
 
     #if os(macOS)
     private var panelController: MacAlarmPanelController?
@@ -27,11 +29,17 @@ final class AlarmCenter: ObservableObject {
     private init() {}
 
     /// Raise (or refresh) a blocking alarm for a claimable cancel.
-    func raiseAlarm(for event: RescueEvent, playSound: Bool) {
+    /// Does not call create-cart — open official Zomato for the flyer.
+    func raiseAlarm(
+        for event: RescueEvent,
+        playSound: Bool,
+        onRequestDetails: (() -> Void)? = nil
+    ) {
         guard event.type == .orderCancelled else { return }
 
         activeAlarm = event
         isAlarming = true
+        self.onRequestDetails = onRequestDetails
 
         postSystemNotification(for: event)
 
@@ -39,7 +47,8 @@ final class AlarmCenter: ObservableObject {
         if panelController == nil {
             panelController = MacAlarmPanelController(
                 onAcknowledge: { [weak self] in self?.acknowledge() },
-                onOpenZomato: { [weak self] in self?.acknowledgeAndOpenZomato() }
+                onOpenZomato: { [weak self] in self?.acknowledgeAndOpenZomato() },
+                onLoadDetails: { [weak self] in self?.requestDetails() }
             )
         }
         panelController?.show(event: event)
@@ -71,6 +80,7 @@ final class AlarmCenter: ObservableObject {
         #endif
         activeAlarm = nil
         isAlarming = false
+        onRequestDetails = nil
     }
 
     func acknowledgeAndOpenZomato() {
@@ -78,17 +88,21 @@ final class AlarmCenter: ObservableObject {
         NotificationManager.openZomato()
     }
 
+    func requestDetails() {
+        onRequestDetails?()
+    }
+
     // MARK: - System notification (backup banner)
 
     private func postSystemNotification(for event: RescueEvent) {
         let content = UNMutableNotificationContent()
-        content.title = "🚨 FOOD RESCUE — ACKNOWLEDGE"
-        content.subtitle = event.restaurantName ?? "Cancelled order nearby"
+        content.title = "🚨 FOOD RESCUE — OPEN ZOMATO"
+        content.subtitle = "Near \(event.locationName)"
         content.body = [
-            "Near \(event.locationName)",
-            event.priceText,
-            "Use the alarm window to acknowledge"
-        ].compactMap { $0 }.joined(separator: " · ")
+            event.restaurantName,
+            "Open the Zomato app now for the official popup.",
+            "Do not fetch details first — that can hide the flyer."
+        ].compactMap { $0 }.joined(separator: " ")
         content.sound = .default
         content.categoryIdentifier = "FOOD_RESCUE_ALARM"
         content.interruptionLevel = .timeSensitive
@@ -201,10 +215,12 @@ private final class MacAlarmSoundRepeater: NSObject {
 final class MacAlarmPanelController: NSObject {
     private let onAcknowledge: () -> Void
     private let onOpenZomato: () -> Void
+    private let onLoadDetails: () -> Void
+    private weak var detailsButton: NSButton?
 
     private lazy var panel: NSPanel = {
         let p = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 440, height: 360),
+            contentRect: NSRect(x: 0, y: 0, width: 440, height: 400),
             styleMask: [.titled, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -226,9 +242,14 @@ final class MacAlarmPanelController: NSObject {
     private let metaLabel = MacAlarmPanelController.makeLabel(size: 12, bold: false, color: .secondaryLabelColor)
     private let hintLabel = MacAlarmPanelController.makeLabel(size: 12, bold: true, color: NSColor(red: 0.886, green: 0.216, blue: 0.267, alpha: 1))
 
-    init(onAcknowledge: @escaping () -> Void, onOpenZomato: @escaping () -> Void) {
+    init(
+        onAcknowledge: @escaping () -> Void,
+        onOpenZomato: @escaping () -> Void,
+        onLoadDetails: @escaping () -> Void
+    ) {
         self.onAcknowledge = onAcknowledge
         self.onOpenZomato = onOpenZomato
+        self.onLoadDetails = onLoadDetails
         super.init()
         buildUI()
     }
@@ -260,19 +281,16 @@ final class MacAlarmPanelController: NSObject {
         headerLabel.alignment = .center
         header.addSubview(headerLabel)
 
-        let openBtn = NSButton(title: "Open Zomato & stop alarm", target: self, action: #selector(tapOpen))
+        let openBtn = NSButton(title: "Open Zomato now (keep flyer)", target: self, action: #selector(tapOpen))
         openBtn.bezelStyle = .rounded
         openBtn.isBordered = true
-        openBtn.contentTintColor = .white
         openBtn.wantsLayer = true
         openBtn.layer?.backgroundColor = NSColor(red: 0.886, green: 0.216, blue: 0.267, alpha: 1).cgColor
         openBtn.layer?.cornerRadius = 8
         openBtn.font = NSFont.systemFont(ofSize: 14, weight: .bold)
         openBtn.translatesAutoresizingMaskIntoConstraints = false
-        // Use prominent control
         if #available(macOS 11.0, *) {
             openBtn.controlSize = .large
-            openBtn.hasDestructiveAction = false
         }
 
         let ackBtn = NSButton(title: "Acknowledge — stop alarm", target: self, action: #selector(tapAck))
@@ -283,9 +301,21 @@ final class MacAlarmPanelController: NSObject {
             ackBtn.controlSize = .large
         }
 
-        hintLabel.stringValue = "Alarm keeps ringing until you acknowledge."
+        let detailsBtn = NSButton(
+            title: "Load restaurant details (may hide Zomato flyer)",
+            target: self,
+            action: #selector(tapDetails)
+        )
+        detailsBtn.bezelStyle = .rounded
+        detailsBtn.font = NSFont.systemFont(ofSize: 11, weight: .medium)
+        detailsBtn.translatesAutoresizingMaskIntoConstraints = false
+        detailsButton = detailsBtn
 
-        let stack = NSStackView(views: [titleLabel, areaLabel, priceLabel, metaLabel, hintLabel, openBtn, ackBtn])
+        hintLabel.stringValue = "Open Zomato immediately for the official popup. Loading details can consume the flyer pitch."
+
+        let stack = NSStackView(views: [
+            titleLabel, areaLabel, priceLabel, metaLabel, hintLabel, openBtn, ackBtn, detailsBtn
+        ])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 10
@@ -315,7 +345,9 @@ final class MacAlarmPanelController: NSObject {
             openBtn.heightAnchor.constraint(equalToConstant: 40),
             openBtn.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -40),
             ackBtn.heightAnchor.constraint(equalToConstant: 36),
-            ackBtn.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -40)
+            ackBtn.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -40),
+            detailsBtn.heightAnchor.constraint(equalToConstant: 32),
+            detailsBtn.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -40)
         ])
     }
 
@@ -330,11 +362,10 @@ final class MacAlarmPanelController: NSObject {
             ))
         }
         panel.orderFrontRegardless()
-        // Don't force key window via SwiftUI path; nonactivating panel + orderFront is safer
     }
 
     func update(event: RescueEvent) {
-        titleLabel.stringValue = event.restaurantName ?? "Cancelled order — claimable"
+        titleLabel.stringValue = event.restaurantName ?? "Food Rescue nearby — open Zomato now"
         areaLabel.stringValue = "📍 \(event.subscribedAreaText)"
         priceLabel.stringValue = event.priceText ?? ""
         priceLabel.isHidden = event.priceText == nil
@@ -345,7 +376,11 @@ final class MacAlarmPanelController: NSObject {
         meta.append(event.timestamp.formatted(date: .omitted, time: .shortened))
         if event.isEnriching { meta.append("Loading details…") }
         if event.enrichmentFailed { meta.append("Details unavailable") }
+        if event.restaurantName == nil, !event.isEnriching {
+            meta.append("MQTT signal only")
+        }
         metaLabel.stringValue = meta.joined(separator: " · ")
+        detailsButton?.isEnabled = !event.isEnriching && event.restaurantName == nil
     }
 
     func hide() {
@@ -353,7 +388,6 @@ final class MacAlarmPanelController: NSObject {
     }
 
     @objc private func tapAck() {
-        // Dispatch async so AppKit finishes button handling before we tear down UI/sound
         DispatchQueue.main.async { [onAcknowledge] in
             onAcknowledge()
         }
@@ -362,6 +396,12 @@ final class MacAlarmPanelController: NSObject {
     @objc private func tapOpen() {
         DispatchQueue.main.async { [onOpenZomato] in
             onOpenZomato()
+        }
+    }
+
+    @objc private func tapDetails() {
+        DispatchQueue.main.async { [onLoadDetails] in
+            onLoadDetails()
         }
     }
 }
@@ -373,6 +413,7 @@ struct AlarmPanelView: View {
     let event: RescueEvent
     let onAcknowledge: () -> Void
     let onOpenZomato: () -> Void
+    var onLoadDetails: (() -> Void)? = nil
 
     @State private var pulse = false
 
@@ -393,7 +434,7 @@ struct AlarmPanelView: View {
             .background(FRTheme.brand)
 
             VStack(alignment: .leading, spacing: 10) {
-                Text(event.restaurantName ?? "Cancelled order — claimable")
+                Text(event.restaurantName ?? "Food Rescue nearby — open Zomato now")
                     .font(.system(size: 20, weight: .bold))
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -416,9 +457,10 @@ struct AlarmPanelView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
 
-                Text("Alarm keeps ringing until you acknowledge.")
+                Text("Open Zomato immediately for the official popup. Loading details can hide the flyer.")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(FRTheme.brand)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -426,7 +468,7 @@ struct AlarmPanelView: View {
 
             VStack(spacing: 10) {
                 Button(action: onOpenZomato) {
-                    Text("Open Zomato & stop alarm")
+                    Text("Open Zomato now (keep flyer)")
                         .font(.system(size: 15, weight: .bold))
                         .frame(maxWidth: .infinity)
                         .frame(height: 48)
@@ -446,6 +488,18 @@ struct AlarmPanelView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
                 .buttonStyle(.plain)
+
+                if let onLoadDetails, event.restaurantName == nil {
+                    Button(action: onLoadDetails) {
+                        Text("Load restaurant details (may hide flyer)")
+                            .font(.system(size: 12, weight: .medium))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 36)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(event.isEnriching)
+                }
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 20)

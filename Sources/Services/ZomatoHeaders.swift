@@ -23,8 +23,8 @@ enum ZomatoConfig {
     static let semanticDedupeWindowSeconds: TimeInterval = 120
     /// Force MQTT reconnect interval.
     static let forceReconnectSeconds: TimeInterval = 20 * 60
-    /// Only raise alarm if create-cart confirms an active deal.
-    static let requireVerifiedDealForAlarm = true
+    /// create-cart is optional (burns flyer pitch). Alarms use MQTT by default.
+    static let requireVerifiedDealForAlarm = false
 }
 
 enum ZomatoHeaders {
