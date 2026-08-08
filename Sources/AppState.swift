@@ -629,13 +629,82 @@ final class AppState: ObservableObject {
             if events.count > 50 { events = Array(events.prefix(50)) }
 
             if parsed.eventType == .orderCancelled {
+                // Alarm immediately — don't wait for create-cart enrichment
                 Task {
-                    await enrichAndAlert(eventId: eventId, addressId: addressId, locationName: locationName)
+                    await fireCancelAlarm(eventId: eventId, addressId: addressId)
                 }
             }
 
         case .log:
             break
+        }
+    }
+
+    /// Sticky alarm + optional deal enrichment (enrichment updates the alarm UI).
+    private func fireCancelAlarm(eventId: String, addressId: Int) async {
+        let now = Date()
+        let elapsed = now.timeIntervalSince(lastNotifiedAt)
+        guard elapsed >= cooldownSeconds else { return }
+
+        lastNotifiedAt = now
+        lastAlertAt = now
+        alertCountToday += 1
+
+        await NotificationManager.shared.ensureAuthorized()
+
+        guard let event = events.first(where: { $0.id == eventId }) else { return }
+        // Raise sticky alarm right away
+        AlarmCenter.shared.raiseAlarm(for: event, playSound: playSound)
+
+        // Enrich in background and refresh alarm panel
+        if fetchDealDetails,
+           let token = tokens?.accessToken,
+           let location = selectedLocations.first(where: { $0.addressId == addressId }) {
+            let cityId = cityIdByAddress[addressId] ?? 0
+            do {
+                let deal = try await api.fetchFoodRescueDeal(
+                    location: location,
+                    cityId: cityId,
+                    accessToken: token
+                )
+                var restaurantName: String?
+                var lat: Double?
+                var lng: Double?
+                if let meta = try? await api.fetchRestaurantMeta(resId: deal.resId, accessToken: token) {
+                    restaurantName = meta.name
+                    lat = meta.lat
+                    lng = meta.lng
+                }
+                updateEvent(id: eventId) { e in
+                    e.restaurantId = deal.resId
+                    e.restaurantName = restaurantName
+                    e.restaurantLat = lat
+                    e.restaurantLng = lng
+                    e.cartFinalCost = deal.cartFinalCost
+                    e.catalogTotalCost = deal.catalogTotalCost
+                    e.viewersCount = deal.viewersCount
+                    if let exp = deal.cartExpiryTimestamp {
+                        e.cartExpiry = Date(timeIntervalSince1970: exp > 10_000_000_000 ? exp / 1000 : exp)
+                    }
+                    if e.orderId == nil {
+                        e.orderId = deal.parentOrderId
+                    }
+                    e.isEnriching = false
+                    e.enrichmentFailed = false
+                }
+            } catch {
+                updateEvent(id: eventId) { e in
+                    e.isEnriching = false
+                    e.enrichmentFailed = true
+                }
+            }
+            if let updated = events.first(where: { $0.id == eventId }) {
+                AlarmCenter.shared.updateAlarm(with: updated)
+            }
+        } else {
+            updateEvent(id: eventId) { e in
+                e.isEnriching = false
+            }
         }
     }
 
@@ -665,70 +734,6 @@ final class AppState: ObservableObject {
             seenSemanticKeys.insert(semanticKey)
         }
         return false
-    }
-
-    private func enrichAndAlert(eventId: String, addressId: Int, locationName: String) async {
-        var shouldNotify = true
-        let now = Date()
-        let elapsed = now.timeIntervalSince(lastNotifiedAt)
-        if elapsed < cooldownSeconds {
-            shouldNotify = false
-        }
-
-        if fetchDealDetails,
-           let token = tokens?.accessToken,
-           let location = selectedLocations.first(where: { $0.addressId == addressId }) {
-            let cityId = cityIdByAddress[addressId] ?? 0
-            do {
-                let deal = try await api.fetchFoodRescueDeal(
-                    location: location,
-                    cityId: cityId,
-                    accessToken: token
-                )
-                var restaurantName: String?
-                var lat: Double?
-                var lng: Double?
-                if let meta = try? await api.fetchRestaurantMeta(resId: deal.resId, accessToken: token) {
-                    restaurantName = meta.name
-                    lat = meta.lat
-                    lng = meta.lng
-                }
-                updateEvent(id: eventId) { event in
-                    event.restaurantId = deal.resId
-                    event.restaurantName = restaurantName
-                    event.restaurantLat = lat
-                    event.restaurantLng = lng
-                    event.cartFinalCost = deal.cartFinalCost
-                    event.catalogTotalCost = deal.catalogTotalCost
-                    event.viewersCount = deal.viewersCount
-                    if let exp = deal.cartExpiryTimestamp {
-                        event.cartExpiry = Date(timeIntervalSince1970: exp > 10_000_000_000 ? exp / 1000 : exp)
-                    }
-                    if event.orderId == nil {
-                        event.orderId = deal.parentOrderId
-                    }
-                    event.isEnriching = false
-                    event.enrichmentFailed = false
-                }
-            } catch {
-                updateEvent(id: eventId) { event in
-                    event.isEnriching = false
-                    event.enrichmentFailed = true
-                }
-            }
-        } else {
-            updateEvent(id: eventId) { event in
-                event.isEnriching = false
-            }
-        }
-
-        guard shouldNotify else { return }
-        lastNotifiedAt = now
-        lastAlertAt = now
-        alertCountToday += 1
-        if let event = events.first(where: { $0.id == eventId }) {
-            NotificationManager.shared.sendFoodRescueAlert(for: event, playSound: playSound)
-        }
     }
 
     private func updateEvent(id: String, mutate: (inout RescueEvent) -> Void) {

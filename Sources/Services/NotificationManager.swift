@@ -16,13 +16,46 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     override init() {
         super.init()
         UNUserNotificationCenter.current().delegate = self
+        registerCategories()
+    }
+
+    private func registerCategories() {
+        let open = UNNotificationAction(
+            identifier: "OPEN_ZOMATO",
+            title: "Open Zomato",
+            options: [.foreground]
+        )
+        let ack = UNNotificationAction(
+            identifier: "ACKNOWLEDGE",
+            title: "Acknowledge",
+            options: []
+        )
+        let alarm = UNNotificationCategory(
+            identifier: "FOOD_RESCUE_ALARM",
+            actions: [open, ack],
+            intentIdentifiers: [],
+            options: [.customDismissAction]
+        )
+        let normal = UNNotificationCategory(
+            identifier: "FOOD_RESCUE",
+            actions: [open],
+            intentIdentifiers: [],
+            options: []
+        )
+        UNUserNotificationCenter.current().setNotificationCategories([alarm, normal])
     }
 
     func requestAuthorization() async {
         do {
-            let granted = try await UNUserNotificationCenter.current()
-                .requestAuthorization(options: [.alert, .sound, .badge])
-            isAuthorized = granted
+            let center = UNUserNotificationCenter.current()
+            let settings = await center.notificationSettings()
+            if settings.authorizationStatus == .notDetermined {
+                let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+                isAuthorized = granted
+            } else {
+                isAuthorized = settings.authorizationStatus == .authorized
+                    || settings.authorizationStatus == .provisional
+            }
             #if os(iOS)
             await MainActor.run {
                 UIApplication.shared.registerForRemoteNotifications()
@@ -33,61 +66,43 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
-    func sendFoodRescueAlert(for event: RescueEvent, playSound: Bool) {
-        let content = UNMutableNotificationContent()
+    /// Ensure we have alert permission; returns false if denied.
+    func ensureAuthorized() async -> Bool {
+        await requestAuthorization()
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        #if os(macOS)
+        if settings.authorizationStatus == .denied {
+            // Help user enable notifications for a menu-bar app
+            if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
+                NSWorkspace.shared.open(url)
+            }
+        }
+        #endif
+        return settings.authorizationStatus == .authorized
+            || settings.authorizationStatus == .provisional
+    }
 
+    /// Legacy soft alert path (used for non-cancel events if needed).
+    func sendFoodRescueAlert(for event: RescueEvent, playSound: Bool) {
         if event.type == .orderCancelled {
-            content.title = event.restaurantName.map { "Food Rescue · \($0)" } ?? "Food Rescue nearby!"
-            var lines: [String] = []
-            lines.append("Near your \(event.locationName)")
-            if !event.locationAddress.isEmpty {
-                lines.append(event.locationAddress)
-            }
-            if let price = event.priceText {
-                lines.append(price)
-            }
-            if let viewers = event.viewersCount, viewers > 0 {
-                lines.append("\(viewers) watching")
-            }
-            if let orderId = event.orderId {
-                lines.append("Order #\(orderId)")
-            }
-            lines.append("Open Zomato now to claim.")
-            content.body = lines.joined(separator: " · ")
-        } else {
-            content.title = "Food Rescue claimed"
-            content.body = "Near \(event.locationName)" + (event.restaurantName.map { " · \($0)" } ?? "")
+            // Sticky alarm is the primary path for cancels
+            AlarmCenter.shared.raiseAlarm(for: event, playSound: playSound)
+            return
         }
 
+        let content = UNMutableNotificationContent()
+        content.title = "Food Rescue claimed"
+        content.body = "Near \(event.locationName)" + (event.restaurantName.map { " · \($0)" } ?? "")
         content.sound = playSound ? .default : nil
         content.categoryIdentifier = "FOOD_RESCUE"
-        content.interruptionLevel = .timeSensitive
-        content.userInfo = [
-            "addressId": event.addressId,
-            "locationName": event.locationName,
-            "orderId": event.orderId ?? "",
-            "restaurantName": event.restaurantName ?? ""
-        ]
+        content.interruptionLevel = .active
 
         let request = UNNotificationRequest(
             identifier: "fr-\(event.id)-\(UUID().uuidString.prefix(6))",
             content: content,
             trigger: nil
         )
-
         UNUserNotificationCenter.current().add(request)
-
-        if playSound {
-            #if os(macOS)
-            NSSound(named: "Glass")?.play()
-            #elseif os(iOS)
-            AudioServicesPlaySystemSound(1007)
-            #endif
-        }
-
-        #if os(macOS)
-        NSApp.requestUserAttention(.criticalRequest)
-        #endif
     }
 
     nonisolated func userNotificationCenter(
@@ -102,7 +117,18 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse
     ) async {
         await MainActor.run {
-            Self.openZomato()
+            switch response.actionIdentifier {
+            case "ACKNOWLEDGE":
+                AlarmCenter.shared.acknowledge()
+            case "OPEN_ZOMATO", UNNotificationDefaultActionIdentifier:
+                if AlarmCenter.shared.isAlarming {
+                    AlarmCenter.shared.acknowledgeAndOpenZomato()
+                } else {
+                    Self.openZomato()
+                }
+            default:
+                break
+            }
         }
     }
 

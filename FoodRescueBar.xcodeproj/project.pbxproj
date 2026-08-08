@@ -30,6 +30,7 @@
 		636843BDA44B91A9AEC5427F /* FoodRescueBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781F24CA7F3D7D70333AA32 /* FoodRescueBarApp.swift */; };
 		648755503A649DBE8A7880AC /* KeepAwakeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A394AA5869FD8B5271DA84A2 /* KeepAwakeService.swift */; };
 		69B2A466E449FDE752C5D6C0 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6964574318DDDB11D6D837FF /* AppState.swift */; };
+		6EA6BE2D313B755F5CF5A1F5 /* AlarmCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F42149042A153F74DAB3FE6 /* AlarmCenter.swift */; };
 		80CD373EF7C74EF35F429440 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12FF9DF92897B740D07737C9 /* HomeView.swift */; };
 		8A323385D56B20A9811976FB /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6964574318DDDB11D6D837FF /* AppState.swift */; };
 		8A6AB84204020C627E734FB5 /* IOSRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAADBA032B08F5A5B9C8137A /* IOSRootView.swift */; };
@@ -48,6 +49,7 @@
 		CE7A854A80543C11B9615108 /* LocationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C595918AF7410CDF7688A42 /* LocationView.swift */; };
 		D53245940EB6AB9FB6BE30F8 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 801D5C6EEF688358DB4F125B /* NotificationManager.swift */; };
 		DA8E84F26F831A6D2B92D94F /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEADE560DBAAF9981CD9BBD6 /* LaunchAtLogin.swift */; };
+		DE2CB14C3DC780DB542F3D38 /* AlarmCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F42149042A153F74DAB3FE6 /* AlarmCenter.swift */; };
 		EED2B09D54E1F98AC0B2B9F6 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50724F3FE82587F8BEB215A /* LoginView.swift */; };
 /* End PBXBuildFile section */
 
@@ -60,6 +62,7 @@
 		44902894158FDB15BDAE0D12 /* MenuBarRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarRootView.swift; sourceTree = "<group>"; };
 		4A22534E120395AD653AE828 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		4BC6F22E455EB9F3E62972BB /* FoodRescueBarIOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodRescueBarIOSApp.swift; sourceTree = "<group>"; };
+		4F42149042A153F74DAB3FE6 /* AlarmCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmCenter.swift; sourceTree = "<group>"; };
 		61DCF9B199B2E6AC64D504B2 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		6964574318DDDB11D6D837FF /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		7E1604380A32D09EB66A44E9 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
@@ -101,6 +104,7 @@
 		0796F1FBE0796C8243C7EA34 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				4F42149042A153F74DAB3FE6 /* AlarmCenter.swift */,
 				9C1C23664775EB32C275658A /* AuthService.swift */,
 				A394AA5869FD8B5271DA84A2 /* KeepAwakeService.swift */,
 				7E1604380A32D09EB66A44E9 /* KeychainStore.swift */,
@@ -280,6 +284,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DE2CB14C3DC780DB542F3D38 /* AlarmCenter.swift in Sources */,
 				69B2A466E449FDE752C5D6C0 /* AppState.swift in Sources */,
 				A4E8CE8DA15C6EC11DB07D83 /* AuthService.swift in Sources */,
 				1019291612C544C9831D37B5 /* Components.swift in Sources */,
@@ -308,6 +313,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6EA6BE2D313B755F5CF5A1F5 /* AlarmCenter.swift in Sources */,
 				8A323385D56B20A9811976FB /* AppState.swift in Sources */,
 				2D0C54E591279D58D1D3CE92 /* AuthService.swift in Sources */,
 				9604A2C75100AACA07D78578 /* Components.swift in Sources */,
@@ -387,7 +393,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 959B556ARQ;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -404,7 +410,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.3.1;
+				MARKETING_VERSION = 1.4.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -485,7 +491,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 959B556ARQ;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -508,7 +514,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.3.1;
+				MARKETING_VERSION = 1.4.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

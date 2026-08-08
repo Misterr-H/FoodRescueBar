@@ -3,6 +3,7 @@ import SwiftUI
 /// Full-screen iOS shell reusing the same screens as the macOS popover.
 struct IOSRootView: View {
     @EnvironmentObject private var state: AppState
+    @ObservedObject private var alarm = AlarmCenter.shared
 
     var body: some View {
         NavigationStack {
@@ -48,6 +49,22 @@ struct IOSRootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.15), value: state.screen)
+        .fullScreenCover(item: Binding(
+            get: { alarm.activeAlarm.map { AlarmItem(event: $0) } },
+            set: { if $0 == nil { alarm.acknowledge() } }
+        )) { item in
+            AlarmPanelView(
+                event: item.event,
+                onAcknowledge: { alarm.acknowledge() },
+                onOpenZomato: { alarm.acknowledgeAndOpenZomato() }
+            )
+            .interactiveDismissDisabled(true)
+        }
+    }
+
+    private struct AlarmItem: Identifiable {
+        let event: RescueEvent
+        var id: String { event.id }
     }
 
     private var bottomBannerEdge: VerticalEdge { .bottom }

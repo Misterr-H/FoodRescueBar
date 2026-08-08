@@ -104,6 +104,36 @@ struct SettingsView: View {
             }
             .frCard()
 
+            Button {
+                Task {
+                    await NotificationManager.shared.ensureAuthorized()
+                    let sample = RescueEvent(
+                        id: "test-\(UUID().uuidString)",
+                        type: .orderCancelled,
+                        timestamp: Date(),
+                        rawPreview: "",
+                        addressId: state.selectedLocations.first?.addressId ?? 0,
+                        locationName: state.selectedLocations.first?.name ?? "Home",
+                        locationAddress: state.selectedLocations.first?.fullAddress ?? "Test address",
+                        orderId: "TEST123",
+                        restaurantId: nil,
+                        restaurantName: "Test Kitchen (alarm demo)",
+                        restaurantLat: nil,
+                        restaurantLng: nil,
+                        cartFinalCost: 199,
+                        catalogTotalCost: 399,
+                        viewersCount: 12,
+                        cartExpiry: Date().addingTimeInterval(180),
+                        isEnriching: false,
+                        enrichmentFailed: false
+                    )
+                    AlarmCenter.shared.raiseAlarm(for: sample, playSound: state.playSound)
+                }
+            } label: {
+                Label("Test alarm (sound + sticky window)", systemImage: "bell.badge.fill")
+            }
+            .buttonStyle(PrimaryButtonStyle())
+
             #if os(macOS)
             Button {
                 NSApp.terminate(nil)
