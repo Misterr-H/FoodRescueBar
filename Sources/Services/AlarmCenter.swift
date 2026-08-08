@@ -353,11 +353,16 @@ final class MacAlarmPanelController: NSObject {
     }
 
     @objc private func tapAck() {
-        onAcknowledge()
+        // Dispatch async so AppKit finishes button handling before we tear down UI/sound
+        DispatchQueue.main.async { [onAcknowledge] in
+            onAcknowledge()
+        }
     }
 
     @objc private func tapOpen() {
-        onOpenZomato()
+        DispatchQueue.main.async { [onOpenZomato] in
+            onOpenZomato()
+        }
     }
 }
 #endif

@@ -26,7 +26,11 @@ struct MenuBarRootView: View {
             }
             .padding(FRTheme.contentPadding)
         }
+        #if os(macOS)
+        .frame(width: FRTheme.popoverWidth, alignment: .topLeading)
+        #else
         .frPopoverPanel()
+        #endif
         .background(FRTheme.surface)
         .animation(.easeInOut(duration: 0.15), value: state.screen)
         .animation(.easeInOut(duration: 0.15), value: state.bannerMessage)
