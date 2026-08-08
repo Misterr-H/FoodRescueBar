@@ -178,8 +178,15 @@ struct HomeView: View {
                     Image(systemName: state.isMonitoring ? "stop.circle.fill" : "play.circle.fill")
                     Text(state.isMonitoring ? "Stop listening" : "Start listening")
                 }
+                .frame(maxWidth: .infinity)
             }
+            #if os(macOS)
+            .buttonStyle(.borderedProminent)
+            .tint(FRTheme.brand)
+            .controlSize(.large)
+            #else
             .buttonStyle(PrimaryButtonStyle(enabled: !state.selectedLocations.isEmpty || state.isMonitoring))
+            #endif
             .disabled(state.selectedLocations.isEmpty && !state.isMonitoring)
 
             HStack(spacing: 8) {
@@ -187,17 +194,27 @@ struct HomeView: View {
                     state.openZomato()
                 } label: {
                     Label("Open Zomato", systemImage: "arrow.up.right.square")
-                        .labelStyle(.titleAndIcon)
+                        .frame(maxWidth: .infinity)
                 }
+                #if os(macOS)
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                #else
                 .buttonStyle(SecondaryButtonStyle())
+                #endif
 
                 Button {
                     state.screen = .settings
                 } label: {
                     Label("Settings", systemImage: "gearshape")
-                        .labelStyle(.titleAndIcon)
+                        .frame(maxWidth: .infinity)
                 }
+                #if os(macOS)
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                #else
                 .buttonStyle(SecondaryButtonStyle())
+                #endif
             }
         }
     }

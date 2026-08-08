@@ -63,24 +63,48 @@ struct LoginView: View {
                         Text(state.isBusy ? "Verifying…" : "Verify & continue")
                     }
                 }
+                #if os(macOS)
+                .buttonStyle(.borderedProminent)
+                .tint(FRTheme.brand)
+                .controlSize(.large)
+                #else
                 .buttonStyle(PrimaryButtonStyle(enabled: !state.isBusy && state.otpCode.count >= 4))
+                #endif
                 .disabled(state.isBusy || state.otpCode.count < 4)
 
                 Button("Use a different number") {
                     state.otpSent = false
                     state.otpCode = ""
                 }
+                #if os(macOS)
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                #else
                 .buttonStyle(SecondaryButtonStyle())
+                #endif
             } else {
                 Button {
                     Task { await state.sendOTP() }
                 } label: {
                     HStack {
-                        if state.isBusy { ProgressView().controlSize(.small).tint(.white) }
+                        if state.isBusy {
+                            #if os(macOS)
+                            ProgressView().controlSize(.small)
+                            #else
+                            ProgressView().controlSize(.small).tint(.white)
+                            #endif
+                        }
                         Text(state.isBusy ? "Sending…" : "Send OTP")
                     }
+                    .frame(maxWidth: .infinity)
                 }
+                #if os(macOS)
+                .buttonStyle(.borderedProminent)
+                .tint(FRTheme.brand)
+                .controlSize(.large)
+                #else
                 .buttonStyle(PrimaryButtonStyle(enabled: !state.isBusy && state.phoneDigits.filter(\.isNumber).count >= 10))
+                #endif
                 .disabled(state.isBusy || state.phoneDigits.filter(\.isNumber).count < 10)
             }
 

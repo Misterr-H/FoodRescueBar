@@ -31,7 +31,11 @@ struct LocationView: View {
                     Button("Refresh") {
                         Task { await state.loadLocations() }
                     }
+                    #if os(macOS)
+                    .buttonStyle(.bordered)
+                    #else
                     .buttonStyle(SecondaryButtonStyle())
+                    #endif
                 }
                 .frCard()
             } else {
@@ -69,16 +73,29 @@ struct LocationView: View {
                         Image(systemName: "checkmark.circle.fill")
                         Text(continueLabel)
                     }
+                    .frame(maxWidth: .infinity)
                 }
+                #if os(macOS)
+                .buttonStyle(.borderedProminent)
+                .tint(FRTheme.brand)
+                .controlSize(.large)
+                #else
                 .buttonStyle(PrimaryButtonStyle(enabled: !state.selectedLocations.isEmpty))
+                #endif
                 .disabled(state.selectedLocations.isEmpty)
 
                 Button {
                     Task { await state.loadLocations() }
                 } label: {
                     Label("Refresh addresses", systemImage: "arrow.clockwise")
+                        .frame(maxWidth: .infinity)
                 }
+                #if os(macOS)
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                #else
                 .buttonStyle(SecondaryButtonStyle())
+                #endif
             }
 
             Button {

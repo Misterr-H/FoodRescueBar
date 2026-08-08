@@ -95,10 +95,19 @@ struct StatusDot: View {
     }
 }
 
+/// Prefer system button styles — custom ButtonStyle + MenuBarExtra/hosting
+/// has caused MainActor.assumeIsolated aborts on macOS 26.
 struct PrimaryButtonStyle: ButtonStyle {
     var enabled: Bool = true
 
     func makeBody(configuration: Configuration) -> some View {
+        #if os(macOS)
+        configuration.label
+            .font(.system(size: 13, weight: .semibold))
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 32)
+            .opacity(enabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)
+        #else
         configuration.label
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(.white)
@@ -109,14 +118,20 @@ struct PrimaryButtonStyle: ButtonStyle {
                     .fill(enabled ? FRTheme.brand : Color.gray.opacity(0.4))
             )
             .opacity(configuration.isPressed ? 0.85 : 1)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
             .contentShape(Rectangle())
+        #endif
     }
 }
 
 struct SecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
+        #if os(macOS)
+        configuration.label
+            .font(.system(size: 12, weight: .medium))
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 30)
+            .opacity(configuration.isPressed ? 0.85 : 1)
+        #else
         configuration.label
             .font(.system(size: 12, weight: .medium))
             .foregroundStyle(.primary)
@@ -128,5 +143,6 @@ struct SecondaryButtonStyle: ButtonStyle {
             )
             .opacity(configuration.isPressed ? 0.8 : 1)
             .contentShape(Rectangle())
+        #endif
     }
 }

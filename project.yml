@@ -11,8 +11,11 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    MARKETING_VERSION: "1.4.0"
-    CURRENT_PROJECT_VERSION: "6"
+    MARKETING_VERSION: "1.4.1"
+    CURRENT_PROJECT_VERSION: "7"
+    # Avoid default MainActor isolation quirks with AppKit/SwiftUI hosting
+    SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
+    SWIFT_STRICT_CONCURRENCY: minimal
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: "959B556ARQ"
     ENABLE_HARDENED_RUNTIME: YES

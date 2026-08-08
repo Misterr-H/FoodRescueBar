@@ -132,15 +132,23 @@ struct SettingsView: View {
             } label: {
                 Label("Test alarm (sound + sticky window)", systemImage: "bell.badge.fill")
             }
+            #if os(macOS)
+            .buttonStyle(.borderedProminent)
+            .tint(FRTheme.brand)
+            .controlSize(.large)
+            #else
             .buttonStyle(PrimaryButtonStyle())
+            #endif
 
             #if os(macOS)
             Button {
                 NSApp.terminate(nil)
             } label: {
                 Label("Quit FoodRescueBar", systemImage: "xmark.circle")
+                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(SecondaryButtonStyle())
+            .buttonStyle(.bordered)
+            .controlSize(.large)
             #endif
         }
         .frame(maxWidth: .infinity, alignment: .leading)
