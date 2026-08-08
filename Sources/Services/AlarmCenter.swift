@@ -18,12 +18,10 @@ final class AlarmCenter: ObservableObject {
     @Published private(set) var isAlarming = false
 
     #if os(macOS)
-    private var panel: NSPanel?
+    private var panelController: MacAlarmPanelController?
     private var soundTimer: Timer?
-    private var host: NSHostingView<AlarmPanelView>?
     #elseif os(iOS)
     private var soundTimer: Timer?
-    private var audioPlayer: AVAudioPlayer?
     #endif
 
     private init() {}
@@ -35,11 +33,16 @@ final class AlarmCenter: ObservableObject {
         activeAlarm = event
         isAlarming = true
 
-        // System banner (auto-dismisses) — backup only
-        postSystemNotification(for: event, playSound: false)
+        postSystemNotification(for: event)
 
         #if os(macOS)
-        presentMacPanel(event: event)
+        if panelController == nil {
+            panelController = MacAlarmPanelController(
+                onAcknowledge: { [weak self] in self?.acknowledge() },
+                onOpenZomato: { [weak self] in self?.acknowledgeAndOpenZomato() }
+            )
+        }
+        panelController?.show(event: event)
         if playSound {
             startMacSoundLoop()
         }
@@ -54,17 +57,17 @@ final class AlarmCenter: ObservableObject {
 
     /// Update text on an already-showing alarm (e.g. after deal enrichment).
     func updateAlarm(with event: RescueEvent) {
-        guard isAlarming, activeAlarm?.id == event.id || activeAlarm != nil else { return }
+        guard isAlarming else { return }
         activeAlarm = event
         #if os(macOS)
-        refreshMacPanelContent()
+        panelController?.update(event: event)
         #endif
     }
 
     func acknowledge() {
         stopSound()
         #if os(macOS)
-        dismissMacPanel()
+        panelController?.hide()
         #endif
         activeAlarm = nil
         isAlarming = false
@@ -75,25 +78,20 @@ final class AlarmCenter: ObservableObject {
         NotificationManager.openZomato()
     }
 
-    // MARK: - System notification (non-blocking backup)
+    // MARK: - System notification (backup banner)
 
-    private func postSystemNotification(for event: RescueEvent, playSound: Bool) {
+    private func postSystemNotification(for event: RescueEvent) {
         let content = UNMutableNotificationContent()
         content.title = "🚨 FOOD RESCUE — ACKNOWLEDGE"
         content.subtitle = event.restaurantName ?? "Cancelled order nearby"
         content.body = [
             "Near \(event.locationName)",
             event.priceText,
-            "Tap Acknowledge in the alarm window"
+            "Use the alarm window to acknowledge"
         ].compactMap { $0 }.joined(separator: " · ")
-        content.sound = playSound ? UNNotificationSound.default : nil
+        content.sound = .default
         content.categoryIdentifier = "FOOD_RESCUE_ALARM"
         content.interruptionLevel = .timeSensitive
-        #if os(macOS)
-        if #available(macOS 12.0, *) {
-            content.relevanceScore = 1.0
-        }
-        #endif
 
         let req = UNNotificationRequest(
             identifier: "fr-alarm-\(event.id)",
@@ -103,93 +101,35 @@ final class AlarmCenter: ObservableObject {
         UNUserNotificationCenter.current().add(req)
     }
 
-    // MARK: - macOS panel + sound
+    // MARK: - Sound
 
     #if os(macOS)
-    private func presentMacPanel(event: RescueEvent) {
-        if panel == nil {
-            let panel = NSPanel(
-                contentRect: NSRect(x: 0, y: 0, width: 440, height: 380),
-                styleMask: [.titled, .nonactivatingPanel, .fullSizeContentView],
-                backing: .buffered,
-                defer: false
-            )
-            panel.title = "Food Rescue Alarm"
-            panel.isFloatingPanel = true
-            panel.level = .statusBar // above most windows
-            panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .moveToActiveSpace]
-            panel.hidesOnDeactivate = false
-            panel.isReleasedWhenClosed = false
-            panel.titlebarAppearsTransparent = true
-            panel.backgroundColor = NSColor.windowBackgroundColor
-            panel.worksWhenModal = true
-            self.panel = panel
-        }
-
-        refreshMacPanelContent()
-
-        guard let panel else { return }
-        panel.center()
-        // Nudge to active screen center
-        if let screen = NSScreen.main {
-            let f = panel.frame
-            let sx = screen.visibleFrame.midX - f.width / 2
-            let sy = screen.visibleFrame.midY - f.height / 2 + 40
-            panel.setFrameOrigin(NSPoint(x: sx, y: sy))
-        }
-        panel.orderFrontRegardless()
-        panel.makeKeyAndOrderFront(nil)
-    }
-
-    private func refreshMacPanelContent() {
-        guard let panel, let event = activeAlarm else { return }
-        let view = AlarmPanelView(
-            event: event,
-            onAcknowledge: { [weak self] in self?.acknowledge() },
-            onOpenZomato: { [weak self] in self?.acknowledgeAndOpenZomato() }
-        )
-        let host = NSHostingView(rootView: view)
-        host.frame = NSRect(x: 0, y: 0, width: 440, height: 380)
-        panel.contentView = host
-        self.host = host
-        panel.setContentSize(NSSize(width: 440, height: 380))
-    }
-
-    private func dismissMacPanel() {
-        panel?.orderOut(nil)
-    }
-
     private func startMacSoundLoop() {
         stopSound()
         playMacAlarmSound()
-        // Repeat until acknowledged
-        let timer = Timer(timeInterval: 1.25, repeats: true) { [weak self] _ in
+        let helper = MacAlarmSoundRepeater { [weak self] in
             Task { @MainActor in
                 self?.playMacAlarmSound()
             }
         }
-        RunLoop.main.add(timer, forMode: .common)
-        soundTimer = timer
+        MacAlarmSoundRepeater.current = helper
+        helper.start()
     }
 
     private func playMacAlarmSound() {
-        // Loud built-in system sounds (cycle a few)
         let names = ["Sosumi", "Hero", "Submarine", "Ping", "Funk"]
-        let name = names[Int(Date().timeIntervalSince1970) % names.count]
+        let name = names[Int.random(in: 0..<names.count)]
         if let sound = NSSound(named: NSSound.Name(name)) {
             sound.volume = 1.0
             sound.play()
         } else {
             NSSound.beep()
         }
-        // Second beep for urgency
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             NSSound.beep()
         }
     }
     #endif
-
-    // MARK: - iOS sound
 
     #if os(iOS)
     private func startIOSSoundLoop() {
@@ -208,26 +148,221 @@ final class AlarmCenter: ObservableObject {
     }
 
     private func playIOSAlarmSound() {
-        AudioServicesPlaySystemSound(1005) // alert
+        AudioServicesPlaySystemSound(1005)
         AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
     }
     #endif
 
     private func stopSound() {
         #if os(macOS)
+        MacAlarmSoundRepeater.current?.stop()
+        MacAlarmSoundRepeater.current = nil
         soundTimer?.invalidate()
         soundTimer = nil
         #elseif os(iOS)
         soundTimer?.invalidate()
         soundTimer = nil
-        audioPlayer?.stop()
-        audioPlayer = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         #endif
     }
 }
 
-// MARK: - Alarm UI
+// MARK: - macOS sound repeater (avoids MainActor.assumeIsolated crashes)
+
+#if os(macOS)
+private final class MacAlarmSoundRepeater: NSObject {
+    static var current: MacAlarmSoundRepeater?
+    private var timer: Timer?
+    private let tick: () -> Void
+
+    init(tick: @escaping () -> Void) {
+        self.tick = tick
+        super.init()
+    }
+
+    func start() {
+        stop()
+        let t = Timer(timeInterval: 1.4, repeats: true) { [weak self] _ in
+            self?.tick()
+        }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
+    }
+
+    func stop() {
+        timer?.invalidate()
+        timer = nil
+    }
+}
+
+// MARK: - Pure AppKit alarm panel (no SwiftUI hosting — crash-safe)
+
+@MainActor
+final class MacAlarmPanelController: NSObject {
+    private let onAcknowledge: () -> Void
+    private let onOpenZomato: () -> Void
+
+    private lazy var panel: NSPanel = {
+        let p = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 440, height: 360),
+            styleMask: [.titled, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        p.title = "Food Rescue Alarm"
+        p.isFloatingPanel = true
+        p.level = .statusBar
+        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .moveToActiveSpace]
+        p.hidesOnDeactivate = false
+        p.isReleasedWhenClosed = false
+        p.worksWhenModal = true
+        return p
+    }()
+
+    private let headerLabel = MacAlarmPanelController.makeLabel(size: 20, bold: true, color: .white)
+    private let titleLabel = MacAlarmPanelController.makeLabel(size: 18, bold: true)
+    private let areaLabel = MacAlarmPanelController.makeLabel(size: 13, bold: false, color: .secondaryLabelColor)
+    private let priceLabel = MacAlarmPanelController.makeLabel(size: 26, bold: true, color: NSColor(red: 0.886, green: 0.216, blue: 0.267, alpha: 1))
+    private let metaLabel = MacAlarmPanelController.makeLabel(size: 12, bold: false, color: .secondaryLabelColor)
+    private let hintLabel = MacAlarmPanelController.makeLabel(size: 12, bold: true, color: NSColor(red: 0.886, green: 0.216, blue: 0.267, alpha: 1))
+
+    init(onAcknowledge: @escaping () -> Void, onOpenZomato: @escaping () -> Void) {
+        self.onAcknowledge = onAcknowledge
+        self.onOpenZomato = onOpenZomato
+        super.init()
+        buildUI()
+    }
+
+    private static func makeLabel(size: CGFloat, bold: Bool, color: NSColor = .labelColor) -> NSTextField {
+        let t = NSTextField(labelWithString: "")
+        t.font = bold
+            ? NSFont.systemFont(ofSize: size, weight: .bold)
+            : NSFont.systemFont(ofSize: size, weight: .medium)
+        t.textColor = color
+        t.maximumNumberOfLines = 4
+        t.lineBreakMode = .byWordWrapping
+        t.isEditable = false
+        t.isBordered = false
+        t.drawsBackground = false
+        t.translatesAutoresizingMaskIntoConstraints = false
+        return t
+    }
+
+    private func buildUI() {
+        let root = NSView(frame: NSRect(x: 0, y: 0, width: 440, height: 360))
+        root.wantsLayer = true
+
+        let header = NSView()
+        header.wantsLayer = true
+        header.layer?.backgroundColor = NSColor(red: 0.886, green: 0.216, blue: 0.267, alpha: 1).cgColor
+        header.translatesAutoresizingMaskIntoConstraints = false
+        headerLabel.stringValue = "🚨  FOOD RESCUE"
+        headerLabel.alignment = .center
+        header.addSubview(headerLabel)
+
+        let openBtn = NSButton(title: "Open Zomato & stop alarm", target: self, action: #selector(tapOpen))
+        openBtn.bezelStyle = .rounded
+        openBtn.isBordered = true
+        openBtn.contentTintColor = .white
+        openBtn.wantsLayer = true
+        openBtn.layer?.backgroundColor = NSColor(red: 0.886, green: 0.216, blue: 0.267, alpha: 1).cgColor
+        openBtn.layer?.cornerRadius = 8
+        openBtn.font = NSFont.systemFont(ofSize: 14, weight: .bold)
+        openBtn.translatesAutoresizingMaskIntoConstraints = false
+        // Use prominent control
+        if #available(macOS 11.0, *) {
+            openBtn.controlSize = .large
+            openBtn.hasDestructiveAction = false
+        }
+
+        let ackBtn = NSButton(title: "Acknowledge — stop alarm", target: self, action: #selector(tapAck))
+        ackBtn.bezelStyle = .rounded
+        ackBtn.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        ackBtn.translatesAutoresizingMaskIntoConstraints = false
+        if #available(macOS 11.0, *) {
+            ackBtn.controlSize = .large
+        }
+
+        hintLabel.stringValue = "Alarm keeps ringing until you acknowledge."
+
+        let stack = NSStackView(views: [titleLabel, areaLabel, priceLabel, metaLabel, hintLabel, openBtn, ackBtn])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 10
+        stack.edgeInsets = NSEdgeInsets(top: 16, left: 20, bottom: 16, right: 20)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        root.addSubview(header)
+        root.addSubview(stack)
+        panel.contentView = root
+
+        NSLayoutConstraint.activate([
+            header.topAnchor.constraint(equalTo: root.topAnchor),
+            header.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            header.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            header.heightAnchor.constraint(equalToConstant: 56),
+
+            headerLabel.centerXAnchor.constraint(equalTo: header.centerXAnchor),
+            headerLabel.centerYAnchor.constraint(equalTo: header.centerYAnchor),
+            headerLabel.leadingAnchor.constraint(greaterThanOrEqualTo: header.leadingAnchor, constant: 12),
+            headerLabel.trailingAnchor.constraint(lessThanOrEqualTo: header.trailingAnchor, constant: -12),
+
+            stack.topAnchor.constraint(equalTo: header.bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            stack.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+
+            openBtn.heightAnchor.constraint(equalToConstant: 40),
+            openBtn.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -40),
+            ackBtn.heightAnchor.constraint(equalToConstant: 36),
+            ackBtn.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -40)
+        ])
+    }
+
+    func show(event: RescueEvent) {
+        update(event: event)
+        panel.center()
+        if let screen = NSScreen.main {
+            let f = panel.frame
+            panel.setFrameOrigin(NSPoint(
+                x: screen.visibleFrame.midX - f.width / 2,
+                y: screen.visibleFrame.midY - f.height / 2 + 30
+            ))
+        }
+        panel.orderFrontRegardless()
+        // Don't force key window via SwiftUI path; nonactivating panel + orderFront is safer
+    }
+
+    func update(event: RescueEvent) {
+        titleLabel.stringValue = event.restaurantName ?? "Cancelled order — claimable"
+        areaLabel.stringValue = "📍 \(event.subscribedAreaText)"
+        priceLabel.stringValue = event.priceText ?? ""
+        priceLabel.isHidden = event.priceText == nil
+
+        var meta: [String] = []
+        if let v = event.viewersCount, v > 0 { meta.append("\(v) watching") }
+        if let o = event.orderId { meta.append("Order \(o)") }
+        meta.append(event.timestamp.formatted(date: .omitted, time: .shortened))
+        if event.isEnriching { meta.append("Loading details…") }
+        if event.enrichmentFailed { meta.append("Details unavailable") }
+        metaLabel.stringValue = meta.joined(separator: " · ")
+    }
+
+    func hide() {
+        panel.orderOut(nil)
+    }
+
+    @objc private func tapAck() {
+        onAcknowledge()
+    }
+
+    @objc private func tapOpen() {
+        onOpenZomato()
+    }
+}
+#endif
+
+// MARK: - Shared SwiftUI alarm view (iOS fullScreenCover)
 
 struct AlarmPanelView: View {
     let event: RescueEvent
@@ -257,7 +392,7 @@ struct AlarmPanelView: View {
                     .font(.system(size: 20, weight: .bold))
                     .fixedSize(horizontal: false, vertical: true)
 
-                Label(event.subscribedAreaText, systemImage: "mappin.and.ellipse")
+                Text("📍 \(event.subscribedAreaText)")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -268,24 +403,13 @@ struct AlarmPanelView: View {
                         .foregroundStyle(FRTheme.brand)
                 }
 
-                HStack(spacing: 12) {
-                    if let viewers = event.viewersCount, viewers > 0 {
-                        chip("\(viewers) watching")
-                    }
-                    if let orderId = event.orderId {
-                        chip("Order \(orderId)")
-                    }
-                    chip(event.timestamp.formatted(date: .omitted, time: .shortened))
-                }
-
-                if event.isEnriching {
-                    HStack(spacing: 8) {
-                        ProgressView().controlSize(.small)
-                        Text("Loading restaurant details…")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                Text([
+                    event.viewersCount.map { "\($0) watching" },
+                    event.orderId.map { "Order \($0)" },
+                    event.timestamp.formatted(date: .omitted, time: .shortened)
+                ].compactMap { $0 }.joined(separator: " · "))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
 
                 Text("Alarm keeps ringing until you acknowledge.")
                     .font(.system(size: 12, weight: .semibold))
@@ -297,7 +421,7 @@ struct AlarmPanelView: View {
 
             VStack(spacing: 10) {
                 Button(action: onOpenZomato) {
-                    Label("Open Zomato & stop alarm", systemImage: "arrow.up.right.square.fill")
+                    Text("Open Zomato & stop alarm")
                         .font(.system(size: 15, weight: .bold))
                         .frame(maxWidth: .infinity)
                         .frame(height: 48)
@@ -320,21 +444,15 @@ struct AlarmPanelView: View {
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 20)
+
+            Spacer(minLength: 0)
         }
-        .frame(width: 440)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(FRTheme.surface)
         .onAppear {
             withAnimation(.easeInOut(duration: 0.55).repeatForever(autoreverses: true)) {
                 pulse = true
             }
         }
-    }
-
-    private func chip(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: 11, weight: .semibold))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Capsule().fill(Color.primary.opacity(0.08)))
     }
 }
