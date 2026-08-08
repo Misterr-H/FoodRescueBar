@@ -1,5 +1,7 @@
 import SwiftUI
+#if os(macOS)
 import AppKit
+#endif
 
 struct SettingsView: View {
     @EnvironmentObject private var state: AppState
@@ -33,6 +35,7 @@ struct SettingsView: View {
                 }
                 .toggleStyle(.switch)
 
+                #if os(macOS)
                 Divider().opacity(0.4)
 
                 Toggle(isOn: $state.launchAtLoginPref) {
@@ -43,6 +46,7 @@ struct SettingsView: View {
                     )
                 }
                 .toggleStyle(.switch)
+                #endif
 
                 Divider().opacity(0.4)
 
@@ -67,10 +71,17 @@ struct SettingsView: View {
                 Text("About")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.secondary)
+                #if os(iOS)
+                Text("On iPhone, leave FoodRescueBar open (or in recent apps with screen awake) for the most reliable real-time alerts. iOS suspends background network; enable notifications when prompted.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                #else
                 Text("Each cancel is tagged with your subscribed area (Home/Work/…). Optional deal fetch adds restaurant & price. Open official Zomato to claim — we never auto-checkout.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                #endif
 
                 Text("Not affiliated with Zomato. Personal research use only.")
                     .font(.system(size: 10))
@@ -79,12 +90,14 @@ struct SettingsView: View {
             }
             .frCard()
 
+            #if os(macOS)
             Button {
                 NSApp.terminate(nil)
             } label: {
                 Label("Quit FoodRescueBar", systemImage: "xmark.circle")
             }
             .buttonStyle(SecondaryButtonStyle())
+            #endif
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

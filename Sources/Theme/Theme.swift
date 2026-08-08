@@ -1,15 +1,27 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#elseif os(iOS)
+import UIKit
+#endif
 
 enum FRTheme {
-    static let brand = Color(red: 0.886, green: 0.216, blue: 0.267) // Zomato-ish red
+    static let brand = Color(red: 0.886, green: 0.216, blue: 0.267)
     static let brandSoft = Color(red: 0.886, green: 0.216, blue: 0.267).opacity(0.12)
     static let success = Color(red: 0.18, green: 0.72, blue: 0.45)
     static let warning = Color(red: 0.95, green: 0.62, blue: 0.18)
+
+    #if os(macOS)
     static let surface = Color(nsColor: .windowBackgroundColor)
     static let card = Color(nsColor: .controlBackgroundColor)
+    #else
+    static let surface = Color(uiColor: .systemBackground)
+    static let card = Color(uiColor: .secondarySystemBackground)
+    #endif
+
     static let secondaryText = Color.secondary
 
-    /// Fixed popover width — MenuBarExtra windows size poorly with flexible width.
+    /// Fixed popover width on macOS MenuBarExtra.
     static let popoverWidth: CGFloat = 360
     static let corner: CGFloat = 12
     static let contentPadding: CGFloat = 14
@@ -38,7 +50,7 @@ extension View {
         modifier(CardBackground(padding: padding))
     }
 
-    /// Size the menu-bar panel to its content (avoids clipped tops / empty voids).
+    /// Size the menu-bar panel to its content (macOS).
     func frPopoverPanel() -> some View {
         self
             .frame(width: FRTheme.popoverWidth, alignment: .topLeading)

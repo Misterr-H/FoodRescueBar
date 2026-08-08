@@ -20,7 +20,6 @@ struct FoodRescueBarApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        // Keep a hidden settings scene so macOS treats us as a proper app when needed
         Settings {
             VStack(alignment: .leading, spacing: 12) {
                 Text("FoodRescueBar")

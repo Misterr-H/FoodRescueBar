@@ -1,6 +1,11 @@
 import Foundation
 import UserNotifications
+#if os(macOS)
 import AppKit
+#elseif os(iOS)
+import UIKit
+import AudioToolbox
+#endif
 
 @MainActor
 final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
@@ -18,6 +23,11 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
             let granted = try await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .sound, .badge])
             isAuthorized = granted
+            #if os(iOS)
+            await MainActor.run {
+                UIApplication.shared.registerForRemoteNotifications()
+            }
+            #endif
         } catch {
             isAuthorized = false
         }
@@ -68,17 +78,23 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         UNUserNotificationCenter.current().add(request)
 
         if playSound {
+            #if os(macOS)
             NSSound(named: "Glass")?.play()
+            #elseif os(iOS)
+            AudioServicesPlaySystemSound(1007)
+            #endif
         }
 
+        #if os(macOS)
         NSApp.requestUserAttention(.criticalRequest)
+        #endif
     }
 
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        [.banner, .sound, .list]
+        [.banner, .sound, .list, .badge]
     }
 
     nonisolated func userNotificationCenter(
@@ -96,9 +112,20 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
             "https://www.zomato.com/order"
         ]
         for c in candidates {
-            if let url = URL(string: c), NSWorkspace.shared.open(url) {
+            guard let url = URL(string: c) else { continue }
+            #if os(macOS)
+            if NSWorkspace.shared.open(url) { return }
+            #elseif os(iOS)
+            if UIApplication.shared.canOpenURL(url) {
+                UIApplication.shared.open(url)
                 return
             }
+            #endif
         }
+        #if os(iOS)
+        if let url = URL(string: "https://www.zomato.com") {
+            UIApplication.shared.open(url)
+        }
+        #endif
     }
 }

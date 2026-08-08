@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: com.foodrescuebar
   deploymentTarget:
     macOS: "14.0"
+    iOS: "17.0"
   developmentLanguage: en
   createIntermediateGroups: true
   xcodeVersion: "16.0"
@@ -10,10 +11,10 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    MARKETING_VERSION: "1.2.0"
-    CURRENT_PROJECT_VERSION: "3"
+    MARKETING_VERSION: "1.3.0"
+    CURRENT_PROJECT_VERSION: "4"
     CODE_SIGN_STYLE: Automatic
-    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    DEVELOPMENT_TEAM: "959B556ARQ"
     ENABLE_HARDENED_RUNTIME: YES
     GENERATE_INFOPLIST_FILE: NO
 
@@ -28,6 +29,8 @@ targets:
     platform: macOS
     sources:
       - path: Sources
+        excludes:
+          - iOS/**
     resources:
       - path: Resources/Assets.xcassets
     dependencies:
@@ -37,11 +40,42 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.foodrescuebar.app
         PRODUCT_NAME: FoodRescueBar
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
         INFOPLIST_FILE: Resources/Info.plist
         CODE_SIGN_ENTITLEMENTS: Resources/FoodRescueBar.entitlements
         LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
         COMBINE_HIDPI_IMAGES: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_EMIT_LOC_STRINGS: YES
+        SUPPORTED_PLATFORMS: macosx
     entitlements:
       path: Resources/FoodRescueBar.entitlements
+
+  FoodRescueBar-iOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+        excludes:
+          - macOS/**
+    resources:
+      - path: Resources/Assets.xcassets
+    dependencies:
+      - package: CocoaMQTT
+        product: CocoaMQTT
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.foodrescuebar.ios
+        PRODUCT_NAME: FoodRescueBar
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        INFOPLIST_FILE: Resources-iOS/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Resources-iOS/FoodRescueBar-iOS.entitlements
+        LD_RUNPATH_SEARCH_PATHS: "@executable_path/Frameworks"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_EMIT_LOC_STRINGS: YES
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
+        SDKROOT: iphoneos
+    entitlements:
+      path: Resources-iOS/FoodRescueBar-iOS.entitlements

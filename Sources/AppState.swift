@@ -449,6 +449,20 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Called when iOS returns to foreground — reconnect any dead MQTT sessions.
+    func ensureMonitoringAlive() async {
+        guard isMonitoring, tokens?.accessToken != nil else { return }
+        let needsWork = selectedLocations.contains { loc in
+            let m = monitors[loc.addressId]
+            return m == nil || !(m?.isConnected ?? false)
+        }
+        if needsWork {
+            await reliabilityTick()
+        } else {
+            recomputeAggregateState()
+        }
+    }
+
     private func startReliabilityLoop() {
         reliabilityTask?.cancel()
         reliabilityTask = Task { [weak self] in

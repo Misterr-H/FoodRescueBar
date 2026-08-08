@@ -29,10 +29,28 @@ Food Rescue is a race: cancelled orders flash for nearby users for only a few mi
 
 Run the app and click the leaf / fork icon in the menu bar (top right).
 
+## Platforms
+
+| Target | Scheme | Notes |
+|--------|--------|--------|
+| **macOS** | `FoodRescueBar` | Menu bar app (no Dock icon) |
+| **iOS** | `FoodRescueBar-iOS` | Full-screen app + local notifications |
+
+### iOS background reality (important)
+
+Apple does **not** allow arbitrary always-on sockets. FoodRescueBar-iOS:
+
+- Delivers **real-time** alerts while the app is **open** or briefly backgrounded  
+- Uses background tasks / refresh to reconnect when possible  
+- Cannot guarantee MQTT while the phone is locked for hours without a push server  
+
+For best results on iPhone: start listening, allow notifications, leave the app in the foreground or in Recents with **Low Power Mode off**. For desk use, the **macOS menu bar app** remains the most reliable 24/7 listener.
+
 ## Requirements
 
-- macOS 14.0+
+- macOS 14.0+ and/or iOS 17.0+
 - Xcode 16+ (Swift 5.9+)
+- Apple Development signing (free team works for personal device install)
 - A Zomato account with at least one saved delivery address
 - Optional: [XcodeGen](https://github.com/yonaskolb/XcodeGen) if you regenerate the project from `project.yml`
 
@@ -41,26 +59,33 @@ Run the app and click the leaf / fork icon in the menu bar (top right).
 ```bash
 git clone https://github.com/Misterr-H/FoodRescueBar.git
 cd FoodRescueBar
+xcodegen generate
 open FoodRescueBar.xcodeproj
 ```
 
-In Xcode:
+### macOS
 
-1. Select the **FoodRescueBar** scheme  
-2. Set your **Signing Team** (Signing & Capabilities)  
-3. Run (**⌘R**)
-
-Or from the CLI:
+1. Scheme **FoodRescueBar**  
+2. Signing Team → Run (**⌘R**)  
+3. Use the menu bar icon (top right)
 
 ```bash
-# Optional: regenerate project
-# xcodegen generate
-
 xcodebuild -scheme FoodRescueBar -configuration Debug -destination 'platform=macOS' build
-open ~/Library/Developer/Xcode/DerivedData/FoodRescueBar-*/Build/Products/Debug/FoodRescueBar.app
 ```
 
-The app has **no Dock icon** — look for it in the **menu bar**.
+### iOS (device)
+
+1. Scheme **FoodRescueBar-iOS**  
+2. Select your iPhone  
+3. Signing Team → Trust developer on device if prompted  
+4. Run (**⌘R**) · allow **Notifications**
+
+```bash
+xcodegen generate
+xcodebuild -scheme FoodRescueBar-iOS -configuration Debug \
+  -destination 'generic/platform=iOS' \
+  -allowProvisioningUpdates build
+```
 
 ## How to use
 
