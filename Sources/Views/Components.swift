@@ -179,16 +179,16 @@ struct EventRow: View {
                     }
 
                     // Subscribed area — always visible for multi-location
-                    Label {
-                        Text(event.subscribedAreaText)
-                            .lineLimit(expanded ? 3 : 1)
-                    } icon: {
-                        Image(systemName: "mappin.circle.fill")
+                    HStack(alignment: .top, spacing: 4) {
+                        Image(systemName: "mappin")
+                            .font(.system(size: 9, weight: .semibold))
                             .foregroundStyle(FRTheme.brand)
+                            .padding(.top, 1)
+                        Text(event.subscribedAreaText)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(expanded ? 3 : 1)
                     }
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .labelStyle(.titleAndIcon)
 
                     HStack(spacing: 6) {
                         if let price = event.priceText {

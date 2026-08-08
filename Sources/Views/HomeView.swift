@@ -204,9 +204,20 @@ struct HomeView: View {
 
     private var eventFeed: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Recent activity")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
+            HStack {
+                Text("Recent activity")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if state.events.count > 1 {
+                    Button("Clean up") {
+                        state.pruneDuplicateEvents()
+                    }
+                    .font(.system(size: 10, weight: .semibold))
+                    .buttonStyle(.plain)
+                    .foregroundStyle(FRTheme.brand)
+                }
+            }
 
             if state.events.isEmpty {
                 EmptyEventsView()

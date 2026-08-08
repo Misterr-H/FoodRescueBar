@@ -11,8 +11,12 @@ enum ZomatoConfig {
     static let mqttBroker = "ssl://hedwig.zomato.com:443"
     static let redirectURI = "https://accounts.zomato.com/zoauth/callback"
 
-    /// Stale MQTT messages older than this are ignored (seconds).
+    /// Stale MQTT cancel messages older than this are ignored (seconds).
     static let staleMessageSeconds: TimeInterval = 120
+    /// Stale claimed events (retained broker noise on reconnect).
+    static let staleClaimedSeconds: TimeInterval = 300
+    /// Bucket size for deduping events without an order id.
+    static let semanticDedupeWindowSeconds: TimeInterval = 120
     /// Force MQTT reconnect interval.
     static let forceReconnectSeconds: TimeInterval = 20 * 60
 }

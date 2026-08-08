@@ -121,8 +121,8 @@ enum FoodRescueEventType: String, Codable {
 
 struct RescueEvent: Identifiable, Equatable {
     let id: String
-    let type: FoodRescueEventType
-    let timestamp: Date
+    var type: FoodRescueEventType
+    var timestamp: Date
     let rawPreview: String
     /// Your watched saved-address id (which subscription fired).
     let addressId: Int
@@ -154,7 +154,7 @@ struct RescueEvent: Identifiable, Equatable {
     }
 
     var priceText: String? {
-        guard let cartFinalCost else { return nil }
+        guard let cartFinalCost, cartFinalCost > 0 else { return nil }
         if let catalog = catalogTotalCost, catalog > cartFinalCost {
             return String(format: "₹%.0f  (was ₹%.0f)", cartFinalCost, catalog)
         }

@@ -99,6 +99,7 @@ final class MQTTMonitor: NSObject, CocoaMQTTDelegate {
             return
         }
 
+        // Lightweight per-connection id filter; AppState does semantic dedupe.
         processedLock.lock()
         let seen = processedIDs.contains(parsed.messageId)
         if !seen {
@@ -113,12 +114,8 @@ final class MQTTMonitor: NSObject, CocoaMQTTDelegate {
             return
         }
 
-        if parsed.eventType == .orderCancelled {
-            let age = Date().timeIntervalSince(parsed.timestamp)
-            if age > ZomatoConfig.staleMessageSeconds {
-                onEvent?(.log("[\(locationName)] Ignored stale cancel (\(Int(age))s old)"))
-                return
-            }
+        if parsed.eventType != .orderCancelled && parsed.eventType != .orderClaimed {
+            return
         }
 
         onEvent?(.message(parsed))

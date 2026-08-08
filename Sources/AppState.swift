@@ -58,6 +58,10 @@ final class AppState: ObservableObject {
     private var lastNotifiedAt: Date = .distantPast
     private var connectedAt: Date?
 
+    /// Global dedupe across all MQTT sessions (message id + semantic keys).
+    private var seenMessageKeys = Set<String>()
+    private var seenSemanticKeys = Set<String>()
+
     init() {
         restoreSession()
     }
@@ -382,10 +386,58 @@ final class AppState: ObservableObject {
         monitorState = .idle
         lastConnectedDescription = "Stopped"
         connectedAt = nil
+        // Keep semantic dedupe so a quick restart doesn't re-show retained claimed spam
         for loc in selectedLocations {
             setStatus(addressId: loc.addressId, name: loc.name, state: .idle, detail: "Stopped")
         }
         recomputeAggregateState()
+    }
+
+    /// Remove noisy claimed duplicates already in the feed (one-shot cleanup).
+    func pruneDuplicateEvents() {
+        // 1) One row per (type, address, orderId or time-bucket)
+        var firstPass: [RescueEvent] = []
+        var keys = Set<String>()
+        for event in events {
+            let key: String
+            if let oid = event.orderId, !oid.isEmpty {
+                key = "\(event.type.rawValue):\(event.addressId):\(oid)"
+            } else {
+                let bucket = Int(event.timestamp.timeIntervalSince1970 / ZomatoConfig.semanticDedupeWindowSeconds)
+                key = "\(event.type.rawValue):\(event.addressId):t\(bucket)"
+            }
+            if keys.contains(key) { continue }
+            keys.insert(key)
+            firstPass.append(event)
+        }
+
+        // 2) Same order id → keep a single row (prefer claimed)
+        var byOrder: [String: RescueEvent] = [:]
+        var noOrder: [RescueEvent] = []
+        for event in firstPass {
+            guard let oid = event.orderId, !oid.isEmpty else {
+                noOrder.append(event)
+                continue
+            }
+            let k = "\(event.addressId):\(oid)"
+            if let existing = byOrder[k] {
+                if event.type == .orderClaimed {
+                    var preferred = event
+                    // Keep restaurant/price from whichever side had them
+                    if preferred.restaurantName == nil { preferred.restaurantName = existing.restaurantName }
+                    if preferred.cartFinalCost == nil { preferred.cartFinalCost = existing.cartFinalCost }
+                    if preferred.catalogTotalCost == nil { preferred.catalogTotalCost = existing.catalogTotalCost }
+                    byOrder[k] = preferred
+                } else if existing.type != .orderClaimed {
+                    byOrder[k] = event.timestamp >= existing.timestamp ? event : existing
+                }
+            } else {
+                byOrder[k] = event
+            }
+        }
+
+        events = (Array(byOrder.values) + noOrder)
+            .sorted { $0.timestamp > $1.timestamp }
     }
 
     func toggleMonitoring() async {
@@ -448,9 +500,53 @@ final class AppState: ObservableObject {
             recomputeAggregateState()
 
         case .message(let parsed):
+            // Ignore non-rescue noise
+            guard parsed.eventType == .orderCancelled || parsed.eventType == .orderClaimed else { return }
+
+            // Stale retained messages (especially claimed floods on reconnect)
+            let age = Date().timeIntervalSince(parsed.timestamp)
+            if parsed.eventType == .orderCancelled, age > ZomatoConfig.staleMessageSeconds {
+                return
+            }
+            if parsed.eventType == .orderClaimed, age > ZomatoConfig.staleClaimedSeconds {
+                return
+            }
+
+            if isDuplicateEvent(parsed, addressId: addressId) {
+                return
+            }
+
+            // Collapse claim onto an existing cancel row for the same order
+            if parsed.eventType == .orderClaimed,
+               let orderId = parsed.orderId,
+               let idx = events.firstIndex(where: {
+                   $0.addressId == addressId
+                       && $0.orderId == orderId
+                       && ($0.type == .orderCancelled || $0.type == .orderClaimed)
+               }) {
+                events[idx].type = .orderClaimed
+                events[idx].timestamp = max(events[idx].timestamp, parsed.timestamp)
+                // Move updated row to top
+                let updated = events.remove(at: idx)
+                events.insert(updated, at: 0)
+                return
+            }
+
+            // Without order id: collapse rapid claimed spam for same area into one row
+            if parsed.eventType == .orderClaimed, parsed.orderId == nil,
+               let idx = events.firstIndex(where: {
+                   $0.addressId == addressId
+                       && $0.type == .orderClaimed
+                       && $0.orderId == nil
+                       && abs($0.timestamp.timeIntervalSince(parsed.timestamp)) < ZomatoConfig.semanticDedupeWindowSeconds
+               }) {
+                events[idx].timestamp = max(events[idx].timestamp, parsed.timestamp)
+                return
+            }
+
             let location = selectedLocations.first(where: { $0.addressId == addressId })
             let eventId = "\(addressId)-\(parsed.messageId)"
-            var item = RescueEvent(
+            let item = RescueEvent(
                 id: eventId,
                 type: parsed.eventType,
                 timestamp: parsed.timestamp,
@@ -482,6 +578,34 @@ final class AppState: ObservableObject {
         case .log:
             break
         }
+    }
+
+    /// Dedupe by MQTT message id and by semantic key (order id or time bucket).
+    private func isDuplicateEvent(_ parsed: MQTTPayloadParser.Parsed, addressId: Int) -> Bool {
+        let msgKey = "msg:\(addressId):\(parsed.messageId)"
+        if seenMessageKeys.contains(msgKey) { return true }
+
+        let semanticKey: String
+        if let orderId = parsed.orderId, !orderId.isEmpty {
+            semanticKey = "ord:\(parsed.eventType.rawValue):\(addressId):\(orderId)"
+        } else {
+            let bucket = Int(parsed.timestamp.timeIntervalSince1970 / ZomatoConfig.semanticDedupeWindowSeconds)
+            semanticKey = "t:\(parsed.eventType.rawValue):\(addressId):\(bucket)"
+        }
+
+        if seenSemanticKeys.contains(semanticKey) { return true }
+
+        seenMessageKeys.insert(msgKey)
+        seenSemanticKeys.insert(semanticKey)
+
+        if seenMessageKeys.count > 800 {
+            seenMessageKeys.removeAll(keepingCapacity: true)
+            seenSemanticKeys.removeAll(keepingCapacity: true)
+            // Re-seed current keys so we don't immediately re-accept floods
+            seenMessageKeys.insert(msgKey)
+            seenSemanticKeys.insert(semanticKey)
+        }
+        return false
     }
 
     private func enrichAndAlert(eventId: String, addressId: Int, locationName: String) async {
