@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-/// Pure AppKit entry — menu bar agent (no Dock).
+/// Menu bar agent — always shows a visible "FoodRescue" status item.
 @main
 enum FoodRescueBarMain {
     static func main() {
@@ -21,143 +21,161 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let appState = AppState()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        log("applicationDidFinishLaunching")
         NSApp.setActivationPolicy(.accessory)
         installStatusItem()
 
-        Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+        Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                self?.refreshStatusItemAppearance()
+                self?.ensureStatusItem()
             }
         }
 
-        // Open panel once if not signed in, so first-run isn't "invisible"
-        if !appState.isLoggedIn {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
-                self?.showMainPanel(force: true)
-            }
+        // Always open panel so user knows the app launched (even if status item is crowded out)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.showMainPanel(force: true)
+            self?.log("opened panel after launch")
         }
     }
 
-    // MARK: - Status item (always visible)
+    // MARK: - Logging
+
+    private func log(_ msg: String) {
+        let line = "\(Date()): \(msg)\n"
+        let path = NSHomeDirectory() + "/Library/Logs/FoodRescueBar.log"
+        if let data = line.data(using: .utf8) {
+            if FileManager.default.fileExists(atPath: path),
+               let handle = FileHandle(forWritingAtPath: path) {
+                handle.seekToEndOfFile()
+                handle.write(data)
+                handle.closeFile()
+            } else {
+                try? data.write(to: URL(fileURLWithPath: path))
+            }
+        }
+        NSLog("FoodRescueBar: \(msg)")
+    }
+
+    // MARK: - Status item
+
+    private func ensureStatusItem() {
+        if statusItem?.button == nil {
+            log("status item missing — recreating")
+            installStatusItem()
+        } else {
+            refreshStatusItemAppearance()
+        }
+    }
 
     private func installStatusItem() {
-        // Remove old item if re-installing
         if let old = statusItem {
             NSStatusBar.system.removeStatusItem(old)
             statusItem = nil
         }
 
-        // Use variable length so "FR" text + icon both fit
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         guard let button = item.button else {
-            NSLog("FoodRescueBar: failed to create status item button")
+            log("ERROR: statusItem.button is nil")
+            showMainPanel(force: true)
             return
         }
 
-        button.target = self
-        button.action = #selector(statusItemClicked(_:))
-        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        button.toolTip = "Food Rescue — left click: panel · right click: menu"
-
-        statusItem = item
-        applyStatusItemAppearance(to: button)
-        // Permanent menu as fallback so the item always does something useful
-        // (left-click still handled via action when menu is nil; we use hybrid below)
-        rebuildAndAttachMenu()
-    }
-
-    private func applyStatusItemAppearance(to button: NSStatusBarButton) {
-        let symbolName = appState.menuBarSystemImage
-        // Always show "FR" text so the item is never invisible in a crowded menu bar
-        // (system symbol alone can fail to render for accessory apps).
-        button.title = " FR"
-        if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "Food Rescue") {
-            let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
+        // Highly visible: always show text (icons alone can vanish in crowded bars)
+        button.title = " FoodRescue "
+        button.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+        if let image = NSImage(systemSymbolName: "leaf.fill", accessibilityDescription: "Food Rescue") {
+            let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .bold)
             button.image = image.withSymbolConfiguration(config)
             button.image?.isTemplate = true
             button.imagePosition = .imageLeft
-        } else {
-            button.image = nil
-            button.title = " FR"
         }
+        button.toolTip = "FoodRescueBar"
+        button.isEnabled = true
+        button.appearsDisabled = false
+
+        item.menu = buildStatusMenu()
+        statusItem = item
+        log("status item installed title='\(button.title)' hasImage=\(button.image != nil)")
     }
 
     private func refreshStatusItemAppearance() {
         guard let button = statusItem?.button else {
-            // Status item lost (can happen if menu bar restarts) — recreate
             installStatusItem()
             return
         }
-        applyStatusItemAppearance(to: button)
-        rebuildAndAttachMenu()
-    }
-
-    private func rebuildAndAttachMenu() {
-        let menu = buildStatusMenu()
-        statusItem?.menu = menu
+        if button.title.trimmingCharacters(in: .whitespaces).isEmpty {
+            button.title = " FoodRescue "
+        }
+        let symbol = appState.isMonitoring ? "leaf.fill" : "leaf"
+        if let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Food Rescue") {
+            let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .bold)
+            button.image = image.withSymbolConfiguration(config)
+            button.image?.isTemplate = true
+            button.imagePosition = .imageLeft
+        }
+        if appState.isMonitoring {
+            button.title = " FoodRescue• "
+        } else {
+            button.title = " FoodRescue "
+        }
+        statusItem?.menu = buildStatusMenu()
     }
 
     private func buildStatusMenu() -> NSMenu {
         let menu = NSMenu()
-        menu.autoenablesItems = true
 
-        let open = NSMenuItem(title: "Open Food Rescue", action: #selector(showMainWindowAction), keyEquivalent: "o")
+        let open = NSMenuItem(title: "Open Food Rescue panel", action: #selector(showMainWindowAction), keyEquivalent: "")
+        open.target = self
         menu.addItem(open)
-        menu.addItem(NSMenuItem.separator())
+        menu.addItem(.separator())
 
         if appState.isLoggedIn {
-            let status = NSMenuItem(
-                title: "● \(appState.monitorState.label)",
-                action: nil,
-                keyEquivalent: ""
-            )
+            let status = NSMenuItem(title: "Status: \(appState.monitorState.label)", action: nil, keyEquivalent: "")
             status.isEnabled = false
             menu.addItem(status)
 
             let areas = NSMenuItem(
-                title: appState.selectionSummary.isEmpty ? "No areas selected" : appState.selectionSummary,
+                title: appState.selectionSummary.isEmpty ? "No areas selected" : "Areas: \(appState.selectionSummary)",
                 action: nil,
                 keyEquivalent: ""
             )
             areas.isEnabled = false
             menu.addItem(areas)
-            menu.addItem(NSMenuItem.separator())
+            menu.addItem(.separator())
 
-            let listenTitle = appState.isMonitoring ? "Stop listening" : "Start listening"
-            let listen = NSMenuItem(title: listenTitle, action: #selector(toggleListening), keyEquivalent: "l")
+            let listen = NSMenuItem(
+                title: appState.isMonitoring ? "Stop listening" : "Start listening",
+                action: #selector(toggleListening),
+                keyEquivalent: ""
+            )
+            listen.target = self
             if appState.selectedLocations.isEmpty && !appState.isMonitoring {
                 listen.isEnabled = false
             }
             menu.addItem(listen)
 
-            menu.addItem(NSMenuItem(title: "Open Zomato", action: #selector(openZomato), keyEquivalent: ""))
-            menu.addItem(NSMenuItem.separator())
-            menu.addItem(NSMenuItem(title: "Test alarm…", action: #selector(testAlarm), keyEquivalent: ""))
+            let z = NSMenuItem(title: "Open Zomato", action: #selector(openZomato), keyEquivalent: "")
+            z.target = self
+            menu.addItem(z)
+            menu.addItem(.separator())
+
+            let test = NSMenuItem(title: "Test alarm…", action: #selector(testAlarm), keyEquivalent: "")
+            test.target = self
+            menu.addItem(test)
         } else {
-            menu.addItem(NSMenuItem(title: "Sign in…", action: #selector(showMainWindowAction), keyEquivalent: ""))
+            let signIn = NSMenuItem(title: "Sign in…", action: #selector(showMainWindowAction), keyEquivalent: "")
+            signIn.target = self
+            menu.addItem(signIn)
         }
 
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Quit FoodRescueBar", action: #selector(quitApp), keyEquivalent: "q"))
-
-        for item in menu.items where item.action != nil {
-            item.target = self
-        }
+        menu.addItem(.separator())
+        let quit = NSMenuItem(title: "Quit FoodRescueBar", action: #selector(quitApp), keyEquivalent: "q")
+        quit.target = self
+        menu.addItem(quit)
         return menu
     }
 
-    @objc private func statusItemClicked(_ sender: Any?) {
-        // With an attached menu, AppKit usually shows the menu on click.
-        // Also open the panel on left-click for quicker access.
-        let event = NSApp.currentEvent
-        if event?.type == .leftMouseUp {
-            // Slight delay so menu and panel don't fight
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-                self?.showMainPanel(force: true)
-            }
-        }
-        rebuildAndAttachMenu()
-    }
+    // MARK: - Panel
 
     @objc private func showMainWindowAction() {
         showMainPanel(force: true)
@@ -177,7 +195,7 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
             let panel = NSPanel(
                 contentRect: NSRect(x: 0, y: 0, width: 360, height: 560),
-                styleMask: [.titled, .closable, .utilityWindow, .nonactivatingPanel],
+                styleMask: [.titled, .closable, .nonactivatingPanel],
                 backing: .buffered,
                 defer: false
             )
@@ -195,30 +213,21 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         guard let panel = mainPanel else { return }
 
-        if let button = statusItem?.button, let buttonWindow = button.window {
-            let buttonRect = button.convert(button.bounds, to: nil)
-            let screenRect = buttonWindow.convertToScreen(buttonRect)
-            var origin = NSPoint(
-                x: screenRect.midX - panel.frame.width / 2,
-                y: screenRect.minY - panel.frame.height - 6
-            )
-            if let screen = buttonWindow.screen ?? NSScreen.main {
-                origin.x = min(
-                    max(origin.x, screen.visibleFrame.minX + 8),
-                    screen.visibleFrame.maxX - panel.frame.width - 8
-                )
-                if origin.y < screen.visibleFrame.minY {
-                    origin.y = screenRect.maxY + 6
-                }
-            }
-            panel.setFrameOrigin(origin)
-        } else if force {
-            panel.center()
+        if let screen = NSScreen.main {
+            let f = panel.frame
+            panel.setFrameOrigin(NSPoint(
+                x: screen.visibleFrame.midX - f.width / 2,
+                y: screen.visibleFrame.midY - f.height / 2
+            ))
         }
 
         NSApp.activate(ignoringOtherApps: true)
+        panel.orderFrontRegardless()
         panel.makeKeyAndOrderFront(nil)
+        log("panel ordered front")
     }
+
+    // MARK: - Actions
 
     @objc private func toggleListening() {
         Task { @MainActor in
@@ -265,11 +274,15 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc private func quitApp() {
         AlarmCenter.shared.acknowledge()
         KeepAwakeService.shared.stop()
+        if let item = statusItem {
+            NSStatusBar.system.removeStatusItem(item)
+        }
         NSApp.terminate(nil)
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         showMainPanel(force: true)
+        ensureStatusItem()
         return true
     }
 
