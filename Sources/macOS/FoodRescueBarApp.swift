@@ -8,7 +8,9 @@ enum FoodRescueBarMain {
         let app = NSApplication.shared
         let delegate = MacAppDelegate()
         app.delegate = delegate
-        app.setActivationPolicy(.accessory)
+        // Regular = Dock icon (easy to find) + menu bar status item.
+        // Accessory-only was too easy to lose on crowded menu bars.
+        app.setActivationPolicy(.regular)
         app.run()
     }
 }
@@ -22,7 +24,7 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         log("applicationDidFinishLaunching")
-        NSApp.setActivationPolicy(.accessory)
+        NSApp.setActivationPolicy(.regular)
         installStatusItem()
 
         Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
@@ -182,7 +184,7 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func showMainPanel(force: Bool) {
-        NSApp.setActivationPolicy(.accessory)
+        NSApp.setActivationPolicy(.regular)
 
         if mainPanel == nil {
             let root = MenuBarRootView()
