@@ -68,20 +68,17 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func applyStatusItemAppearance(to button: NSStatusBarButton) {
         let symbolName = appState.menuBarSystemImage
+        // Always show "FR" text so the item is never invisible in a crowded menu bar
+        // (system symbol alone can fail to render for accessory apps).
+        button.title = " FR"
         if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "Food Rescue") {
-            let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .medium)
+            let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
             button.image = image.withSymbolConfiguration(config)
             button.image?.isTemplate = true
-            // Keep short title so item is never zero-width if image fails to draw
-            button.title = ""
-            button.imagePosition = .imageOnly
+            button.imagePosition = .imageLeft
         } else {
             button.image = nil
-            button.title = "FR"
-        }
-        // Extra safety: if still empty, force text so item is never invisible
-        if button.image == nil && button.title.isEmpty {
-            button.title = "FR"
+            button.title = " FR"
         }
     }
 
