@@ -34,6 +34,11 @@ targets:
       - path: Sources
         excludes:
           - iOS/**
+      # Ensure resources are actually copied into the app bundle
+      - path: Resources/Assets.xcassets
+        buildPhase: resources
+      - path: Resources/AppIcon.icns
+        buildPhase: resources
     resources:
       - path: Resources/Assets.xcassets
       - path: Resources/AppIcon.icns
@@ -62,6 +67,8 @@ targets:
       - path: Sources
         excludes:
           - macOS/**
+      - path: Resources/Assets.xcassets
+        buildPhase: resources
     resources:
       - path: Resources/Assets.xcassets
     dependencies:

@@ -17,6 +17,7 @@
 		2694D5125086C78D0CCE3CC7 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61DCF9B199B2E6AC64D504B2 /* Theme.swift */; };
 		29CD666E81E6E1D3D79CF130 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61DCF9B199B2E6AC64D504B2 /* Theme.swift */; };
 		2D0C54E591279D58D1D3CE92 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1C23664775EB32C275658A /* AuthService.swift */; };
+		37B9FD52B2632CA2B6785171 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = C67462EAA6A67E0CC4488F19 /* AppIcon.icns */; };
 		3C9A3E64811015E6173E21AC /* CocoaMQTT in Frameworks */ = {isa = PBXBuildFile; productRef = 84FCC84081B86061AF7C8069 /* CocoaMQTT */; };
 		3F12CE0B032731CF8E315B40 /* MQTTMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2DBF4C8E01FB5931D750146 /* MQTTMonitor.swift */; };
 		465DA2DFEF5FE9757D46DD76 /* MenuBarRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44902894158FDB15BDAE0D12 /* MenuBarRootView.swift */; };
@@ -27,6 +28,7 @@
 		592E2F22A3982D5A26F4C1BC /* ZomatoAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 300983FF9845D1FD9E326503 /* ZomatoAPI.swift */; };
 		610B1BFDCF744BA778FC34D3 /* MenuBarRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44902894158FDB15BDAE0D12 /* MenuBarRootView.swift */; };
 		617CFD59D30C72565FEC8DFD /* ZomatoAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 300983FF9845D1FD9E326503 /* ZomatoAPI.swift */; };
+		62C2D5B2CA87CFB49EF0CC0A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 70A51C335C33818B42F0EFE6 /* Assets.xcassets */; };
 		636843BDA44B91A9AEC5427F /* FoodRescueBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781F24CA7F3D7D70333AA32 /* FoodRescueBarApp.swift */; };
 		648755503A649DBE8A7880AC /* KeepAwakeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A394AA5869FD8B5271DA84A2 /* KeepAwakeService.swift */; };
 		69B2A466E449FDE752C5D6C0 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6964574318DDDB11D6D837FF /* AppState.swift */; };
@@ -50,6 +52,7 @@
 		D53245940EB6AB9FB6BE30F8 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 801D5C6EEF688358DB4F125B /* NotificationManager.swift */; };
 		DA8E84F26F831A6D2B92D94F /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEADE560DBAAF9981CD9BBD6 /* LaunchAtLogin.swift */; };
 		DE2CB14C3DC780DB542F3D38 /* AlarmCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F42149042A153F74DAB3FE6 /* AlarmCenter.swift */; };
+		EA21078DD2AD1AF528BB2D4E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 70A51C335C33818B42F0EFE6 /* Assets.xcassets */; };
 		EED2B09D54E1F98AC0B2B9F6 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50724F3FE82587F8BEB215A /* LoginView.swift */; };
 /* End PBXBuildFile section */
 
@@ -65,6 +68,7 @@
 		4F42149042A153F74DAB3FE6 /* AlarmCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmCenter.swift; sourceTree = "<group>"; };
 		61DCF9B199B2E6AC64D504B2 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		6964574318DDDB11D6D837FF /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		70A51C335C33818B42F0EFE6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		7E1604380A32D09EB66A44E9 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		801D5C6EEF688358DB4F125B /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		8C595918AF7410CDF7688A42 /* LocationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationView.swift; sourceTree = "<group>"; };
@@ -73,6 +77,7 @@
 		B260CD9A9B733C9920A51751 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		B781F24CA7F3D7D70333AA32 /* FoodRescueBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodRescueBarApp.swift; sourceTree = "<group>"; };
 		BEADE560DBAAF9981CD9BBD6 /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
+		C67462EAA6A67E0CC4488F19 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		D2DBF4C8E01FB5931D750146 /* MQTTMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MQTTMonitor.swift; sourceTree = "<group>"; };
 		E50724F3FE82587F8BEB215A /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		F4144F156FCCD817E6022667 /* FoodRescueBar-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "FoodRescueBar-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -129,6 +134,7 @@
 		38392872D01C13554F770559 = {
 			isa = PBXGroup;
 			children = (
+				DF8D6256C6936B2F5BB1A1B2 /* Resources */,
 				D4AE247BC4196CF43AF489A2 /* Sources */,
 				968AAEA6671F667D26D36E2D /* Products */,
 			);
@@ -188,6 +194,15 @@
 			path = Sources;
 			sourceTree = "<group>";
 		};
+		DF8D6256C6936B2F5BB1A1B2 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				C67462EAA6A67E0CC4488F19 /* AppIcon.icns */,
+				70A51C335C33818B42F0EFE6 /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 		F2C8CC8EC56CA9F8F632A346 /* Models */ = {
 			isa = PBXGroup;
 			children = (
@@ -204,6 +219,7 @@
 			buildConfigurationList = AD8E0F5B03341397C72B145A /* Build configuration list for PBXNativeTarget "FoodRescueBar-iOS" */;
 			buildPhases = (
 				20053A273A244AFF7E9B4D01 /* Sources */,
+				6A156BE46809E542D4AD6FEB /* Resources */,
 				E72994A14D6E1466896D2560 /* Frameworks */,
 			);
 			buildRules = (
@@ -223,6 +239,7 @@
 			buildConfigurationList = 004783FC712847AD2AAC8DB0 /* Build configuration list for PBXNativeTarget "FoodRescueBar" */;
 			buildPhases = (
 				6CB0BC683F500152AAC4B1EC /* Sources */,
+				656AA17F1D610DCD36F09C98 /* Resources */,
 				7D8A9DE430DA58F9AA1E95D9 /* Frameworks */,
 			);
 			buildRules = (
@@ -278,6 +295,26 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		656AA17F1D610DCD36F09C98 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				37B9FD52B2632CA2B6785171 /* AppIcon.icns in Resources */,
+				62C2D5B2CA87CFB49EF0CC0A /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6A156BE46809E542D4AD6FEB /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EA21078DD2AD1AF528BB2D4E /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		20053A273A244AFF7E9B4D01 /* Sources */ = {
