@@ -36,6 +36,7 @@ targets:
           - iOS/**
     resources:
       - path: Resources/Assets.xcassets
+      - path: Resources/AppIcon.icns
     dependencies:
       - package: CocoaMQTT
         product: CocoaMQTT
